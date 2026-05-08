@@ -211,8 +211,12 @@ namespace aurora::mail::common
     stream_ = std::make_unique<TimedOutStream>(std::move(plain_stream), timeout_);
   }
 
-  awaitable<VoidResult> BaseProtocolClient::writeCommand(const std::string& data)
+  awaitable<VoidResult> BaseProtocolClient::writeCommand(std::string data)
   {
+    // NOTE: `data` is intentionally taken by value — see header. The buffer
+    // produced by `asio::buffer(data)` below holds a raw pointer into this
+    // local's storage; after the `co_await` the storage MUST still be alive,
+    // which it is exactly because we own `data` here.
     const std::size_t end = data.find('\r');
     const std::string_view lineSv(data.data(), end == std::string::npos ? data.size() : end);
     log_debug(std::format("{} C: {}", toString(mail_protocol_), redactClientLineForLog(lineSv)));

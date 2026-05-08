@@ -129,10 +129,20 @@ namespace aurora::mail::common
     /**
      * @brief Write data to the stream.
      *
-     * @param data Data to write (should include protocol line endings)
+     * @param data Data to write (should include protocol line endings).
+     *
+     * MUST be taken by value, not by reference. C++ coroutines do NOT
+     * extend the lifetime of reference parameters: after the first
+     * @c co_await, the original argument may be destroyed, leaving the
+     * frame's reference dangling. @c asio::buffer(data) below would then
+     * point at freed memory and we'd corrupt the result handed back to
+     * the caller (we used to crash inside @c boost::system::error_code::message
+     * on access-violation due to exactly this — "garbage error_code" with
+     * a torn @c category pointer was actually torn @c data text).
+     *
      * @return VoidResult indicating success or error
      */
-    awaitable<VoidResult> writeCommand(const std::string& data);
+    awaitable<VoidResult> writeCommand(std::string data);
 
     /**
      * @brief Read a multi-line response from the stream.
