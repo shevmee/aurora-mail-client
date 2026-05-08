@@ -1,4 +1,7 @@
-# bootstrap.ps1 — one-command provisioner for Aurora Mail on Windows.
+# bootstrap.ps1 - one-command provisioner for Aurora Mail on Windows.
+# (Keep this file ASCII-only: Windows PowerShell 5.1 reads .ps1 in the
+# system codepage by default, so non-ASCII characters in string literals
+# can break tokenisation and cause spurious "missing closing brace" errors.)
 #
 # Bootstraps a local vcpkg checkout under vendor/vcpkg, installs project
 # dependencies via the manifest in vcpkg.json, then configures and builds the
@@ -58,7 +61,7 @@ $VcpkgExe = Join-Path $VcpkgDir 'vcpkg.exe'
 
 if (-not $SkipDeps) {
     if (-not (Test-Path $VcpkgDir)) {
-        # IMPORTANT: full clone — NOT --depth 1.
+        # IMPORTANT: full clone - NOT --depth 1.
         #
         # vcpkg's manifest mode (with builtin-baseline) needs the *complete*
         # git history of the registry, because every port version is stored
@@ -79,7 +82,7 @@ if (-not $SkipDeps) {
             # ports become resolvable. Cheap no-op if already full.
             $isShallow = (git rev-parse --is-shallow-repository 2>$null).Trim()
             if ($isShallow -eq 'true') {
-                Write-Log "Detected shallow vcpkg clone — converting to full clone (git fetch --unshallow)"
+                Write-Log "Detected shallow vcpkg clone - converting to full clone (git fetch --unshallow)"
                 git fetch --unshallow 2>$null | Out-Null
             }
             git pull --ff-only 2>$null | Out-Null
@@ -99,7 +102,7 @@ if (-not $SkipDeps) {
     # vcpkg manifest mode requires a "builtin-baseline" (pinned vcpkg registry
     # commit) whenever the manifest contains "version>=" / "version=" etc.
     # constraints. If the field is missing, ask vcpkg to add it for us using
-    # the HEAD commit of the local vcpkg checkout — fully deterministic and
+    # the HEAD commit of the local vcpkg checkout - fully deterministic and
     # avoids the "rejected because it uses 'version>='" failure on first run.
     $manifestPath = Join-Path $RepoRoot 'vcpkg.json'
     if (Test-Path $manifestPath) {
@@ -120,7 +123,7 @@ if (-not $SkipDeps) {
 }
 
 if ($SkipBuild) {
-    Write-Log '-SkipBuild set, dependency installation complete — exiting before configure'
+    Write-Log '-SkipBuild set, dependency installation complete - exiting before configure'
     return
 }
 
