@@ -222,8 +222,19 @@ namespace aurora::mail::common
     log_debug(std::format("{} C: {}", toString(mail_protocol_), redactClientLineForLog(lineSv)));
 
     auto write_result = co_await stream_->write(asio::buffer(data));
-    if (auto ec = write_result.error(); ec.failed())
+    // CRITICAL: gate on has_value() before touching .error(). Calling
+    // std::expected::error() when has_value() is true is undefined behaviour
+    // (per [expected.object.obs] precondition: has_value() == false). What
+    // it returned in practice was 16 bytes of *uninitialised* union storage:
+    // the first 8 looked like a non-zero `val_` (the actual successful
+    // bytes_transmitted), so ec.failed() returned true and we entered this
+    // branch on a successful write; the next 8 bytes (the would-be `cat_`
+    // pointer) held leftover bytes from the surrounding frame — typically
+    // a slice of the base64 XOAUTH2 token in `data` — and the AV at
+    // `mov rax, [rcx]` inside ec.message() was the deref of that garbage.
+    if (!write_result.has_value())
     {
+      const auto& ec = write_result.error();
       auto err = ProtocolError::io("Write failed", ec.message());
       log_error(err.toString());
       co_return std::unexpected(err);
@@ -253,8 +264,13 @@ namespace aurora::mail::common
       line_count++;
 
       auto result = co_await stream_->readUntil(line, "\r\n");
-      if (auto ec = result.error(); ec.failed())
+      // See comment in writeCommand(): never call .error() unconditionally on
+      // a std::expected — that's UB when has_value() is true and produces a
+      // bogus error_code with garbage `cat_`, eventually crashing inside
+      // ec.message().
+      if (!result.has_value())
       {
+        const auto& ec = result.error();
         // Expected when a coroutine read is cancelled (e.g. leaving IMAP IDLE).
         if (ec == asio::error::operation_aborted)
         {
@@ -302,8 +318,11 @@ namespace aurora::mail::common
 
         auto literal_result = co_await stream_->readExactly(asio::buffer(literal_data.data(), *literal_size));
 
-        if (auto ec = literal_result.error(); ec.failed())
+        // See comment in writeCommand(): never call .error() unconditionally
+        // on a std::expected — that's UB when has_value() is true.
+        if (!literal_result.has_value())
         {
+          const auto& ec = literal_result.error();
           if (ec == asio::error::operation_aborted)
           {
             log_debug(std::format("{}: Literal read cancelled ({})", toString(mail_protocol_), ec.message()));
