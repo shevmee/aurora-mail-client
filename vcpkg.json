@@ -11,7 +11,11 @@
       "default-features": false,
       "features": ["concurrent", "gui", "network", "sql", "sql-sqlite", "widgets"]
     },
-    "qttools",
+    {
+      "name": "qttools",
+      "default-features": false,
+      "features": ["linguist"]
+    },
     "qt5compat",
     "qtkeychain",
     "boost-asio",
