@@ -12,6 +12,197 @@ namespace aurora::mail::app::email {
 
 using aurora::mail::app::utils::TextSanitizer;
 
+namespace {
+
+/**
+ * Tokenize an IMAP ENVELOPE-style content string into its top-level fields.
+ *
+ * Each field is one of:
+ *   - "quoted string" (with backslash-escaped quotes)
+ *   - NIL
+ *   - (parenthesized group)  — returned with its outer parens
+ *
+ * The envelope passed in MUST already have its outermost parentheses removed.
+ * Nested parens and quoted strings are tracked so address-list groups are
+ * returned intact. Used to safely extract the TO field (index 5) from an
+ * IMAP ENVELOPE without relying on fragile global regex matches.
+ */
+QStringList tokenizeEnvelopeFields(const QString& env)
+{
+    QStringList fields;
+    int i = 0;
+    auto skipWs = [&]() {
+        while (i < env.length() && env[i].isSpace()) {
+            ++i;
+        }
+    };
+
+    while (i < env.length()) {
+        skipWs();
+        if (i >= env.length()) {
+            break;
+        }
+        const QChar c = env[i];
+
+        if (c == QLatin1Char('"')) {
+            const int start = i;
+            ++i;
+            while (i < env.length()) {
+                if (env[i] == QLatin1Char('\\') && i + 1 < env.length()) {
+                    i += 2;
+                    continue;
+                }
+                if (env[i] == QLatin1Char('"')) {
+                    ++i;
+                    break;
+                }
+                ++i;
+            }
+            fields << env.mid(start, i - start);
+        } else if (c == QLatin1Char('(')) {
+            const int start = i;
+            int depth = 1;
+            ++i;
+            while (i < env.length() && depth > 0) {
+                if (env[i] == QLatin1Char('"')) {
+                    ++i;
+                    while (i < env.length()) {
+                        if (env[i] == QLatin1Char('\\') && i + 1 < env.length()) {
+                            i += 2;
+                            continue;
+                        }
+                        if (env[i] == QLatin1Char('"')) {
+                            ++i;
+                            break;
+                        }
+                        ++i;
+                    }
+                    continue;
+                }
+                if (env[i] == QLatin1Char('(')) {
+                    ++depth;
+                } else if (env[i] == QLatin1Char(')')) {
+                    --depth;
+                }
+                ++i;
+            }
+            fields << env.mid(start, i - start);
+        } else if (env.mid(i, 3) == QStringLiteral("NIL")
+                   && (i + 3 == env.length() || !env[i + 3].isLetterOrNumber())) {
+            fields << QStringLiteral("NIL");
+            i += 3;
+        } else {
+            // Skip any unexpected character defensively.
+            ++i;
+        }
+    }
+    return fields;
+}
+
+/** Strip surrounding double-quotes and unescape \" / \\ from an envelope token. */
+QString unquoteEnvelopeString(QString s)
+{
+    if (s.length() >= 2 && s.startsWith(QLatin1Char('"')) && s.endsWith(QLatin1Char('"'))) {
+        s = s.mid(1, s.length() - 2);
+        s.replace(QStringLiteral("\\\""), QStringLiteral("\""));
+        s.replace(QStringLiteral("\\\\"), QStringLiteral("\\"));
+    }
+    return s;
+}
+
+/**
+ * Decode an envelope-encoded display string. Applies RFC 2047 decoding when
+ * the value contains an encoded-word marker; otherwise returns it as-is.
+ */
+QString decodeEnvelopeDisplay(const QString& raw)
+{
+    if (raw.contains(QStringLiteral("=?"))) {
+        return QString::fromStdString(mime_reader::decodeHeaderValue(raw.toStdString()));
+    }
+    return raw;
+}
+
+/**
+ * Given an IMAP envelope address-list field (e.g. `((name adl mailbox host)…)`
+ * or `NIL`), return the first address rendered as a display string. Prefers
+ * the personal name; falls back to "user@host"; returns empty when neither is
+ * available. Any additional recipients are summarised as " + N".
+ */
+QString extractFirstAddressFromList(const QString& field)
+{
+    if (field.isEmpty() || field == QStringLiteral("NIL")) {
+        return QString();
+    }
+    QString inner = field;
+    if (inner.startsWith(QLatin1Char('('))) {
+        inner = inner.mid(1);
+    }
+    if (inner.endsWith(QLatin1Char(')'))) {
+        inner.chop(1);
+    }
+
+    const QStringList addrs = tokenizeEnvelopeFields(inner);
+    if (addrs.isEmpty()) {
+        return QString();
+    }
+
+    QString first = addrs.front();
+    if (first.startsWith(QLatin1Char('('))) {
+        first = first.mid(1);
+    }
+    if (first.endsWith(QLatin1Char(')'))) {
+        first.chop(1);
+    }
+
+    const QStringList parts = tokenizeEnvelopeFields(first);
+    if (parts.size() < 4) {
+        return QString();
+    }
+
+    const QString rawName = (parts[0] == QStringLiteral("NIL")) ? QString() : unquoteEnvelopeString(parts[0]);
+    const QString user    = (parts[2] == QStringLiteral("NIL")) ? QString() : unquoteEnvelopeString(parts[2]);
+    const QString host    = (parts[3] == QStringLiteral("NIL")) ? QString() : unquoteEnvelopeString(parts[3]);
+
+    QString head;
+    if (!rawName.isEmpty()) {
+        head = decodeEnvelopeDisplay(rawName);
+    } else if (!user.isEmpty() && !host.isEmpty()) {
+        head = QStringLiteral("%1@%2").arg(user, host);
+    } else {
+        return QString();
+    }
+
+    if (addrs.size() > 1) {
+        head += QStringLiteral(" + %1").arg(addrs.size() - 1);
+    }
+    return head;
+}
+
+/** Render a MailAddress as its display name when present, else the address. */
+QString formatMailAddressDisplay(const aurora::mail::common::mail::MailAddress& addr)
+{
+    return QString::fromStdString(addr.getName().empty() ? addr.getAddress() : addr.getName());
+}
+
+/**
+ * Build a "To: …" display string from an EmailRecipients struct. Returns the
+ * first address' display form, with "+ N" appended when more than one
+ * recipient exists. Empty when there are no recipients.
+ */
+QString formatRecipientsDisplay(const aurora::mail::common::mail::EmailRecipients& rec)
+{
+    if (rec.to.empty()) {
+        return QString();
+    }
+    QString head = formatMailAddressDisplay(rec.to.front());
+    if (rec.to.size() > 1) {
+        head += QStringLiteral(" + %1").arg(rec.to.size() - 1);
+    }
+    return head;
+}
+
+}  // namespace
+
 EmailSummary EmailSummary::fromReceivedMessage(
     const ReceivedMailMessage& msg,
     const QString& uid)
@@ -25,6 +216,8 @@ EmailSummary EmailSummary::fromReceivedMessage(
         msg.from.getName().empty()
             ? msg.from.getAddress()
             : msg.from.getName());
+
+    summary.to = formatRecipientsDisplay(msg.email_recipients);
     
     // Convert date
     if (msg.has_date) {
@@ -153,6 +346,15 @@ QVector<EmailSummary> EmailParser::parseEmailList(const std::string& response)
             auto msgIdMatch = msgIdRegex.match(envelope, envelope.lastIndexOf('<'));
             if (msgIdMatch.hasMatch()) {
                 summary.messageId = msgIdMatch.captured(0);
+            }
+
+            // Extract TO address-list (envelope field index 5: date, subject,
+            // from, sender, reply-to, TO, cc, bcc, in-reply-to, message-id).
+            // Used by the mail list when displaying outgoing folders (Sent /
+            // Drafts) where the recipient is the meaningful label.
+            const QStringList envFields = tokenizeEnvelopeFields(envelope);
+            if (envFields.size() > 5) {
+                summary.to = extractFirstAddressFromList(envFields[5]);
             }
         } else {
             summary.subject = QString("Email #%1").arg(summary.uid);

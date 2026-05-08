@@ -100,7 +100,7 @@
     </message>
     <message>
         <source>AI and application settings</source>
-        <translation>Налаштування AI і застосунку</translation>
+        <translation>Налаштування ШІ та застосунку</translation>
     </message>
     <message>
         <source>Sign Out</source>
@@ -168,11 +168,11 @@
     </message>
     <message>
         <source>AI-powered grammar and style checking</source>
-        <translation>Перевірка граматики і стилю за допомогою AI</translation>
+        <translation>Перевірка граматики і стилю за допомогою ШІ</translation>
     </message>
     <message>
         <source>AI Assist</source>
-        <translation>AI-помічник</translation>
+        <translation>ШІ-помічник</translation>
     </message>
     <message>
         <source>Send</source>
@@ -238,7 +238,7 @@
     <name>aurora::mail::ui::AIAssistantDialog</name>
     <message>
         <source>AI Writing Assistant</source>
-        <translation>AI-асистент для написання</translation>
+        <translation>ШІ-асистент для написання</translation>
     </message>
     <message>
         <source>Action:</source>
@@ -266,11 +266,19 @@
     </message>
     <message>
         <source>AI Suggestion</source>
-        <translation>Пропозиція AI</translation>
+        <translation>Пропозиція ШІ</translation>
     </message>
     <message>
         <source>Try Again</source>
         <translation>Спробувати ще раз</translation>
+    </message>
+    <message>
+        <source>Generate</source>
+        <translation>Запитати ШІ</translation>
+    </message>
+    <message>
+        <source>Choose an option above and click Generate to ask the AI.</source>
+        <translation>Оберіть варіант вище та натисніть «Запитати ШІ», щоб надіслати запит.</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -297,7 +305,7 @@
     <name>aurora::mail::ui::AiSettingsDialog</name>
     <message>
         <source>AI settings</source>
-        <translation>Налаштування AI</translation>
+        <translation>Налаштування ШІ</translation>
     </message>
     <message>
         <source>Paste your API key from Google AI Studio. Keys are stored in the system keychain when available, not in the project source.</source>

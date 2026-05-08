@@ -1830,9 +1830,12 @@ void MainWindow::onAIAssistButtonClicked()
     });
     
     dialog->show();
-    
-    // Start initial grammar check
-    m_aiService->checkGrammar(body);
+
+    // Do NOT trigger an AI request on open. The dialog starts in its idle
+    // state — the user must pick an action and click Generate to actually
+    // call the AI. This makes mode selection (and any retries) a single,
+    // explicit, intentional gesture rather than firing a network request
+    // every time the combo box changes.
 }
 
 void MainWindow::clearComposeFields()

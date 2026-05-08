@@ -51,6 +51,7 @@ struct EmailSummary {
     QString uid;        ///< Unique identifier from IMAP
     QString messageId;  ///< Message-ID header for threading
     QString from;       ///< Sender name/email
+    QString to;         ///< Primary recipient display string (first "To" address; appended with "+ N" when more than one).
     QString subject;    ///< Email subject
     QString preview;    ///< Short preview of body
     QDateTime date;     ///< Date received

@@ -7,15 +7,11 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
-#include <QUrlQuery>
 
-QString GeminiProvider::buildUrl(const QString& apiKey, const QString& modelPath)
+QString GeminiProvider::buildUrl(const QString& /*apiKey*/, const QString& modelPath)
 {
     const QString path = modelPath.isEmpty() ? QString::fromLatin1(kDefaultModelPath) : modelPath;
     QUrl url(QString::fromLatin1("https://generativelanguage.googleapis.com/") + path);
-    QUrlQuery q;
-    q.addQueryItem(QStringLiteral("key"), apiKey);
-    url.setQuery(q);
     return url.toString();
 }
 
@@ -55,10 +51,11 @@ QByteArray GeminiProvider::buildRequestBody(const QString& systemPrompt, const Q
 }
 
 QNetworkReply* GeminiProvider::post(QNetworkAccessManager* nam, const QString& urlString,
-                                      const QByteArray& jsonBody)
+                                      const QString& apiKey, const QByteArray& jsonBody)
 {
     QNetworkRequest request{QUrl{urlString}};
     request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    request.setRawHeader("x-goog-api-key", apiKey.toUtf8());
     return nam->post(request, jsonBody);
 }
 

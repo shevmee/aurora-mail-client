@@ -53,6 +53,15 @@ public:
     [[nodiscard]] bool isUnread() const noexcept { return !m_summary.isRead; }
     void setUnread(bool unread);
 
+    /**
+     * Switch the row's primary label between "From" (default, false) and "To"
+     * (true). Used for outgoing folders (Sent / Drafts) where the recipient
+     * is the more useful identity to display. Falls back to From if the
+     * recipient field is empty.
+     */
+    void setShowRecipient(bool showRecipient);
+    [[nodiscard]] bool showsRecipient() const noexcept { return m_showRecipient; }
+
 signals:
     void clicked(const QString& uid);
     void selectedChanged();
@@ -75,6 +84,7 @@ private:
     aurora::mail::app::email::EmailSummary m_summary;
 
     bool m_selected{false};
+    bool m_showRecipient{false};
 
     // Child widgets — constructed in the ctor and owned by Qt parent chain.
     // Non-null for the lifetime of *this*.

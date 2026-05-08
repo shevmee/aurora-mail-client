@@ -190,13 +190,19 @@ void EmailItemWidget::createUi()
 
 void EmailItemWidget::updateContent()
 {
-    m_avatarLabel->setText(senderInitials(m_summary.from));
+    // Outgoing folders (Sent / Drafts) display the recipient instead of the
+    // local user. Fall back to From when "To" is unknown so we never render a
+    // blank row, even when an envelope is missing recipient data.
+    const bool useRecipient = m_showRecipient && !m_summary.to.isEmpty();
+    const QString& primaryAddress = useRecipient ? m_summary.to : m_summary.from;
+
+    m_avatarLabel->setText(senderInitials(primaryAddress));
 
     const bool unread = isUnread();
     const QColor& mainColor = unread ? kColorTextUnread : kColorTextRead;
 
     {
-        QString sender = TextSanitizer::removeSupplementaryPlaneCharacters(m_summary.from);
+        QString sender = TextSanitizer::removeSupplementaryPlaneCharacters(primaryAddress);
         sender = truncateWithEllipsis(std::move(sender), SENDER_MAX_LENGTH);
         m_senderLabel->setText(sender);
         applyRowTextStyle(m_senderLabel, mainColor, /*bold=*/unread);
@@ -226,6 +232,7 @@ void EmailItemWidget::setEmailSummary(const EmailSummary& summary)
 {
     const bool contentChanged = (m_summary.uid     != summary.uid     ||
                                  m_summary.from    != summary.from    ||
+                                 m_summary.to      != summary.to      ||
                                  m_summary.subject != summary.subject ||
                                  m_summary.preview != summary.preview ||
                                  m_summary.date    != summary.date    ||
@@ -261,6 +268,15 @@ void EmailItemWidget::setUnread(bool unread)
     m_summary.isRead = !unread;
     updateContent();
     emit unreadChanged();
+}
+
+void EmailItemWidget::setShowRecipient(bool showRecipient)
+{
+    if (m_showRecipient == showRecipient) {
+        return;
+    }
+    m_showRecipient = showRecipient;
+    updateContent();
 }
 
 void EmailItemWidget::mousePressEvent(QMouseEvent* event)

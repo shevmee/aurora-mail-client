@@ -48,6 +48,14 @@ public:
     QString getResultText() const;
 
     /**
+     * @brief Idle state shown when the dialog opens (and after errors).
+     *        The user must select an action and press the primary button to
+     *        actually issue an AI request — selecting a mode in the combo
+     *        box never triggers a request on its own.
+     */
+    void showIdle();
+
+    /**
      * @brief Shows loading state while waiting for AI response.
      */
     void showLoading();
@@ -82,7 +90,13 @@ private:
     QProgressBar* m_progressBar;
     QPushButton* m_applyButton;
     QPushButton* m_cancelButton;
-    QPushButton* m_retryButton;
+    /**
+     * Primary action: triggers an AI request for the currently-selected mode.
+     * Used both for the first request and for re-running with a different
+     * mode. Selecting a mode in the combo box does NOT trigger a request —
+     * the user must click this button explicitly.
+     */
+    QPushButton* m_generateButton;
     QWidget* m_comparisonWidget;
     QWidget* m_loadingWidget;
 

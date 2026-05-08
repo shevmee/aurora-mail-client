@@ -9,6 +9,38 @@
 
 using aurora::mail::app::email::EmailSummary;
 
+namespace {
+
+/**
+ * Heuristic check for an outgoing folder where the recipient (To) is the
+ * meaningful identity to display in the list, rather than the sender (which
+ * is the local user). Matches Gmail "[Gmail]/Sent Mail", IMAP "Sent",
+ * "Sent Items" / "Sent Mail", and dotted hierarchies like "INBOX.Sent".
+ *
+ * Conservative: requires the LAST path segment to start with "Sent " or to
+ * equal "Sent" exactly so we don't accidentally treat a user-named folder
+ * such as "Sent receipts" the same way unless it actually is one. (We allow
+ * "Sent Items" / "Sent Mail" via the prefix-with-space rule.)
+ */
+bool mailboxIsOutgoing(const QString& mailbox)
+{
+    if (mailbox.isEmpty()) {
+        return false;
+    }
+    const qsizetype slash = std::max(mailbox.lastIndexOf(QLatin1Char('/')),
+                                     mailbox.lastIndexOf(QLatin1Char('.')));
+    const QString tail = (slash >= 0) ? mailbox.mid(slash + 1) : mailbox;
+    if (tail.compare(QStringLiteral("Sent"), Qt::CaseInsensitive) == 0) {
+        return true;
+    }
+    if (tail.startsWith(QStringLiteral("Sent "), Qt::CaseInsensitive)) {
+        return true;
+    }
+    return false;
+}
+
+}  // namespace
+
 EmailListManager::EmailListManager(QVBoxLayout* mailItemsLayout,
                                    QWidget* mailListContainer,
                                    QWidget* emailActionsBar,
@@ -301,6 +333,7 @@ void EmailListManager::addEmailItem(const EmailSummary& summary, bool atBottom)
 
     QWidget* parentWidget = (m_mailListContainer != nullptr) ? m_mailListContainer : m_mailItemsLayout->parentWidget();
     auto* emailItem = new EmailItemWidget(summary, parentWidget);
+    emailItem->setShowRecipient(mailboxIsOutgoing(m_currentMailbox));
 
     connect(emailItem, &EmailItemWidget::clicked, this,
             [this](const QString& uid) {

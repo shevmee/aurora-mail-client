@@ -200,7 +200,7 @@ void AIService::sendRequest(const QString& systemPrompt, const QString& userText
 
     const QString url = GeminiProvider::buildUrl(m_apiKey);
     const QByteArray body = GeminiProvider::buildRequestBody(systemPrompt, userText);
-    QNetworkReply* reply = GeminiProvider::post(m_networkManager, url, body);
+    QNetworkReply* reply = GeminiProvider::post(m_networkManager, url, m_apiKey, body);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, userText, callback]() {
         handleResponse(reply, userText, callback);
