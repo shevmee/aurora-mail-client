@@ -16,7 +16,10 @@
       "default-features": false,
       "features": ["linguist"]
     },
-    "qt5compat",
+    {
+      "name": "qt5compat",
+      "default-features": false
+    },
     "qtkeychain",
     "boost-asio",
     "boost-system",
