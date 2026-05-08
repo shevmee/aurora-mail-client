@@ -104,6 +104,17 @@ if (-not $SkipDeps) {
     # constraints. If the field is missing, ask vcpkg to add it for us using
     # the HEAD commit of the local vcpkg checkout - fully deterministic and
     # avoids the "rejected because it uses 'version>='" failure on first run.
+    #
+    # NOTE on per-port "version>=" constraints in vcpkg.json:
+    # We deliberately do NOT use them. The builtin-baseline above already
+    # pins every transitive dependency to a single vcpkg registry commit,
+    # which is fully reproducible. Per-port constraints add a second layer
+    # of pinning that often points at a SemVer string with no matching
+    # entry in vcpkg's version DB (e.g. openssl never had a 3.0.0 port,
+    # the line jumps from 1.1.x straight to 3.0.7+) and breaks resolution.
+    # If a hard floor on a library version is ever required, raise it by
+    # bumping the builtin-baseline to a newer vcpkg commit, not by adding
+    # a per-port "version>=".
     $manifestPath = Join-Path $RepoRoot 'vcpkg.json'
     if (Test-Path $manifestPath) {
         $manifestJson = Get-Content $manifestPath -Raw | ConvertFrom-Json
