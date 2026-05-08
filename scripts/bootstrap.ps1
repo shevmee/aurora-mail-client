@@ -125,8 +125,16 @@ if (-not $SkipDeps) {
         }
     }
 
-    Write-Log 'Installing vcpkg.json dependencies for triplet x64-windows'
-    & $VcpkgExe install --triplet x64-windows --x-feature=tests
+    # Use the local release-only overlay triplet (scripts/vcpkg-triplets/
+    # x64-windows-rel.cmake) so vcpkg skips Debug variants of every
+    # dependency. See that file for rationale (build time, disk, and
+    # Windows-only Debug build flakiness in Qt/harfbuzz).
+    $OverlayTripletsDir = Join-Path $RepoRoot 'scripts\vcpkg-triplets'
+    Write-Log "Installing vcpkg.json dependencies for triplet x64-windows-rel (release-only)"
+    & $VcpkgExe install `
+        --triplet x64-windows-rel `
+        --overlay-triplets="$OverlayTripletsDir" `
+        --x-feature=tests
     if ($LASTEXITCODE -ne 0) { Write-DieLog 'vcpkg install failed' }
 } else {
     Write-Log '-SkipDeps set, skipping vcpkg install'
