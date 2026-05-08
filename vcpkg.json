@@ -5,6 +5,7 @@
   "description": "Aurora Mail — cross-platform desktop mail client with async architecture and AI integration",
   "homepage": "https://github.com/aurora-mail/aurora-mail",
   "supports": "(windows | linux | osx) & !uwp",
+  "//dependencies": "Per-port version constraints (version>=) intentionally omitted: the builtin-baseline already pins every transitive dependency to a deterministic vcpkg registry commit, so re-adding 'version>=' only risks pointing at a SemVer string that has no entry in the registry's version DB. If a hard floor on Boost.Asio (>=1.83 for the executor model used in the engine) or OpenSSL (>=3.0 for FIPS provider compatibility) is ever required, raise it by bumping 'builtin-baseline' to a newer vcpkg commit rather than per-port constraints.",
   "dependencies": [
     {
       "name": "qtbase",
@@ -14,16 +15,10 @@
     "qttools",
     "qt5compat",
     "qtkeychain",
-    {
-      "name": "boost-asio",
-      "version>=": "1.83.0"
-    },
+    "boost-asio",
     "boost-system",
     "boost-thread",
-    {
-      "name": "openssl",
-      "version>=": "3.0.0"
-    },
+    "openssl",
     "gmime",
     "nlohmann-json"
   ],

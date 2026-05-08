@@ -58,13 +58,32 @@ $VcpkgExe = Join-Path $VcpkgDir 'vcpkg.exe'
 
 if (-not $SkipDeps) {
     if (-not (Test-Path $VcpkgDir)) {
-        Write-Log "Cloning microsoft/vcpkg into $VcpkgDir"
+        # IMPORTANT: full clone — NOT --depth 1.
+        #
+        # vcpkg's manifest mode (with builtin-baseline) needs the *complete*
+        # git history of the registry, because every port version is stored
+        # as a separate git tree object. A shallow clone is missing all of
+        # them and vcpkg fails with "fatal: failed to unpack ... was cloned
+        # as a shallow repo" the first time it tries to materialise a
+        # non-HEAD version such as boost-asio@1.83.0.
+        Write-Log "Cloning microsoft/vcpkg into $VcpkgDir (full history)"
         New-Item -ItemType Directory -Path (Split-Path $VcpkgDir) -Force | Out-Null
-        git clone --depth 1 https://github.com/microsoft/vcpkg.git $VcpkgDir
+        git clone https://github.com/microsoft/vcpkg.git $VcpkgDir
+        if ($LASTEXITCODE -ne 0) { Write-DieLog 'git clone vcpkg failed' }
     } else {
         Write-Log "Reusing existing vcpkg checkout at $VcpkgDir"
         Push-Location $VcpkgDir
-        try { git pull --ff-only 2>$null | Out-Null } catch { }
+        try {
+            # Auto-heal previously-shallow clones from older versions of this
+            # script: convert to a full clone in place so version-pinned
+            # ports become resolvable. Cheap no-op if already full.
+            $isShallow = (git rev-parse --is-shallow-repository 2>$null).Trim()
+            if ($isShallow -eq 'true') {
+                Write-Log "Detected shallow vcpkg clone — converting to full clone (git fetch --unshallow)"
+                git fetch --unshallow 2>$null | Out-Null
+            }
+            git pull --ff-only 2>$null | Out-Null
+        } catch { }
         Pop-Location
     }
 
@@ -76,6 +95,21 @@ if (-not $SkipDeps) {
 
     $env:VCPKG_ROOT = $VcpkgDir
     Write-Log "VCPKG_ROOT=$env:VCPKG_ROOT"
+
+    # vcpkg manifest mode requires a "builtin-baseline" (pinned vcpkg registry
+    # commit) whenever the manifest contains "version>=" / "version=" etc.
+    # constraints. If the field is missing, ask vcpkg to add it for us using
+    # the HEAD commit of the local vcpkg checkout — fully deterministic and
+    # avoids the "rejected because it uses 'version>='" failure on first run.
+    $manifestPath = Join-Path $RepoRoot 'vcpkg.json'
+    if (Test-Path $manifestPath) {
+        $manifestJson = Get-Content $manifestPath -Raw | ConvertFrom-Json
+        if (-not $manifestJson.PSObject.Properties.Name -contains 'builtin-baseline') {
+            Write-Log "vcpkg.json has no builtin-baseline; pinning to current vcpkg HEAD"
+            & $VcpkgExe x-update-baseline --add-initial-baseline
+            if ($LASTEXITCODE -ne 0) { Write-DieLog 'vcpkg x-update-baseline failed' }
+        }
+    }
 
     Write-Log 'Installing vcpkg.json dependencies for triplet x64-windows'
     & $VcpkgExe install --triplet x64-windows --x-feature=tests
