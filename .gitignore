@@ -33,3 +33,6 @@ ui_*.h
 
 # OS
 .DS_Store
+
+# Personal notes / scratch (never commit)
+text.md
