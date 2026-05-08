@@ -17,6 +17,7 @@ ui_*.h
 # IDE
 .idea/
 .vscode/*.log
+.cache/
 
 # OS
 .DS_Store
