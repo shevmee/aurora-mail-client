@@ -237,7 +237,9 @@ namespace aurora::mail::smtp
 
     if (result.has_value())
     {
-      co_await closeConnection();
+      // Best-effort transport teardown after a successful QUIT. The peer is
+      // expected to drop the socket itself, so any error here is informational.
+      (void)co_await closeConnection();
     }
 
     log_info("SMTP: QUIT command successful.");

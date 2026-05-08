@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <expected>
 #include <format>
 #include <fstream>
@@ -24,11 +25,26 @@ using StartupConfig = aurora::mail::common::config::StartupConfig;
 
 constexpr char DEFAULT_CONFIG_FILE[] = "config.json";
 
-// Credentials should be loaded from environment variables or secure config
+// Credentials should be loaded from environment variables or secure config.
+// MSVC deprecates std::getenv (C4996) in favour of the bounds-checked
+// _dupenv_s; on POSIX std::getenv is the only portable option. Wrap both
+// behind a single helper so call sites stay agnostic.
 inline std::string getEnvOrEmpty(const char* name)
 {
+#ifdef _WIN32
+  char* raw = nullptr;
+  std::size_t len = 0;
+  if (_dupenv_s(&raw, &len, name) != 0 || raw == nullptr)
+  {
+    return {};
+  }
+  std::string value(raw);
+  std::free(raw);
+  return value;
+#else
   const char* val = std::getenv(name);
-  return val ? val : "";
+  return val != nullptr ? val : "";
+#endif
 }
 
 // JSON deserialization for the CLI's StartupConfig lives here (and only here).

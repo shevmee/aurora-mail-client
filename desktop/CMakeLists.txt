@@ -137,6 +137,14 @@ target_link_libraries(aurora-mail PRIVATE
     Qt${QT_VERSION_MAJOR}::Sql
 )
 
+# Windows: pull system root certificates from Wincrypt at startup. Without
+# this OpenSSL on Windows has no trust store and every IMAPS/SMTPS handshake
+# fails with "certificate verify failed". See loadWindowsRootCertificates()
+# in main.cpp for the runtime side.
+if(WIN32)
+    target_link_libraries(aurora-mail PRIVATE crypt32)
+endif()
+
 if(APPLE)
     # AGL was deprecated in macOS 10.9 and removed from SDK 10.14+
     # Qt 6.8.0 still links to it - create a stub framework
@@ -198,3 +206,76 @@ install(TARGETS aurora-mail
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(aurora-mail)
 endif()
+
+# ----------------------------------------------------------------------------
+# Windows: deploy Qt 6 plugins next to the binary. Without platforms/
+# qwindows.dll any Qt GUI app aborts at startup with the classic
+# "no Qt platform plugin could be initialized" message box.
+#
+# We deliberately do NOT use windeployqt here because vcpkg's split-triplet
+# layout (host tools in x64-windows, runtime DLLs in x64-windows-rel)
+# confuses windeployqt's prefix-detection: it walks its own location to
+# determine where Qt is installed and then fails to find runtime libraries
+# that actually live in the target triplet's bin/.
+#
+# DLL deployment (Qt6Core.dll, qt6keychain.dll, libcrypto-3-x64.dll, …) is
+# handled automatically by vcpkg's toolchain via VCPKG_APPLOCAL_DEPS=ON,
+# which is the default for the Visual Studio generator. The only thing
+# missing is the Qt plugin tree, which we mirror manually below.
+# ----------------------------------------------------------------------------
+if(WIN32 AND ${QT_VERSION_MAJOR} GREATER_EQUAL 6)
+    # Qt6_DIR points at <triplet>/share/Qt6, so plugins live two levels up
+    # under Qt6/plugins (vcpkg layout). Resolve once, absolute, so the path
+    # is robust against in/out-of-source builds.
+    get_filename_component(_AURORA_QT_PLUGINS_DIR
+        "${Qt6_DIR}/../../../Qt6/plugins" ABSOLUTE)
+
+    if(NOT EXISTS "${_AURORA_QT_PLUGINS_DIR}/platforms/qwindows.dll")
+        message(WARNING
+            "Qt 6 platform plugin not found at "
+            "'${_AURORA_QT_PLUGINS_DIR}/platforms/qwindows.dll'. "
+            "aurora-mail.exe will fail to start until you copy the Qt "
+            "plugins tree next to it.")
+    endif()
+
+    # Plugins the desktop app actually needs at runtime. Each is optional:
+    # if vcpkg didn't install a particular feature (e.g. no SVG support),
+    # we silently skip it instead of failing the build.
+    set(_AURORA_QT_REQUIRED_PLUGIN_DIRS
+        platforms      # qwindows.dll – mandatory for any Qt GUI app
+        styles         # native Windows 11 look-and-feel (qmodernwindowsstyle.dll)
+        imageformats   # PNG/JPG/GIF/ICO attachments and inline images
+        tls            # qopensslbackend.dll for IMAPS/SMTPS
+        sqldrivers     # qsqlite.dll – local mail metadata cache (QSqlDatabase)
+        iconengines    # qsvgicon.dll – toolbar/menu vector icons
+    )
+
+    foreach(_dir IN LISTS _AURORA_QT_REQUIRED_PLUGIN_DIRS)
+        if(EXISTS "${_AURORA_QT_PLUGINS_DIR}/${_dir}")
+            add_custom_command(TARGET aurora-mail POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${_AURORA_QT_PLUGINS_DIR}/${_dir}"
+                    "$<TARGET_FILE_DIR:aurora-mail>/${_dir}"
+                COMMENT
+                    "Deploying Qt6 ${_dir} plugins next to aurora-mail.exe"
+                VERBATIM
+            )
+        endif()
+    endforeach()
+endif()
+
+# ----------------------------------------------------------------------------
+# Stage a default config.json next to the binary on every build. main.cpp's
+# ensureConfigExists() will copy this file into <AppDataLocation>/config.json
+# on first launch (per OS user), so the bundled copy is the seed for new
+# installs and a reference for existing ones. The committed example file
+# under Resources/ keeps "locale": "uk" and conservative logger defaults; it
+# never contains credentials.
+# ----------------------------------------------------------------------------
+add_custom_command(TARGET aurora-mail POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/Resources/config.example.json"
+        "$<TARGET_FILE_DIR:aurora-mail>/config.json"
+    COMMENT "Staging default config.json next to aurora-mail.exe"
+    VERBATIM
+)

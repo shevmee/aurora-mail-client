@@ -697,14 +697,15 @@ void MainWindow::authenticateWithOAuthAsync(const std::string& accessToken)
         {
           publishState(ImapSessionLinkState::Connecting);
 
-          co_await smtpClient->closeConnection();
+          // Best-effort cleanup before reconnecting; ignore any teardown error.
+          (void)co_await smtpClient->closeConnection();
 
           qDebug() << "Connecting to IMAP server (on IMAP strand)...";
           const bool imapOk = co_await boost::asio::co_spawn(
               *strand,
               [imapClient, imapServer, imapPort, username, accessToken]() -> boost::asio::awaitable<bool>
               {
-                co_await imapClient->closeConnection();
+                (void)co_await imapClient->closeConnection();
                 imapClient->reset();
 
                 auto imapConnectResult = co_await imapClient->asyncConnect(imapServer, imapPort);
@@ -768,6 +769,15 @@ void MainWindow::authenticateWithOAuthAsync(const std::string& accessToken)
         catch (const std::exception& e)
         {
           qWarning() << "Authentication error:" << e.what();
+          publishState(ImapSessionLinkState::Disconnected);
+          finishUi(false);
+        }
+        catch (...)
+        {
+          // See loadFolders() for the rationale: a detached coroutine that
+          // lets a non-std exception escape calls std::terminate, killing
+          // the GUI app without any diagnostic.
+          qWarning() << "OAuth authentication: non-std exception";
           publishState(ImapSessionLinkState::Disconnected);
           finishUi(false);
         }
@@ -972,14 +982,15 @@ void MainWindow::authenticateWithPasswordAsync(PasswordCredentialsStorage::Crede
         {
           publishState(ImapSessionLinkState::Connecting);
 
-          co_await smtpClient->closeConnection();
+          // Best-effort cleanup before reconnecting; ignore any teardown error.
+          (void)co_await smtpClient->closeConnection();
 
           qDebug() << "Connecting to IMAP server (password auth, on IMAP strand)...";
           const bool imapOk = co_await boost::asio::co_spawn(
               *strand,
               [imapClient, imapServer, imapPort, username, password]() -> boost::asio::awaitable<bool>
               {
-                co_await imapClient->closeConnection();
+                (void)co_await imapClient->closeConnection();
                 imapClient->reset();
 
                 auto connectResult = co_await imapClient->asyncConnect(imapServer, imapPort);
@@ -1039,6 +1050,16 @@ void MainWindow::authenticateWithPasswordAsync(PasswordCredentialsStorage::Crede
         catch (const std::exception& e)
         {
           qWarning() << "Password authentication error:" << e.what();
+          publishState(ImapSessionLinkState::Disconnected);
+          finishUi(false);
+        }
+        catch (...)
+        {
+          // Catch-all: non-std exceptions in a detached coroutine reach the
+          // resume frame and end up calling std::terminate, which manifests
+          // as a silent process exit for a WIN32_EXECUTABLE GUI app. Log
+          // and notify the UI instead.
+          qWarning() << "Password authentication: non-std exception";
           publishState(ImapSessionLinkState::Disconnected);
           finishUi(false);
         }
@@ -1292,31 +1313,71 @@ void MainWindow::loadFolders(std::function<void()> afterAppliedOnQtThread)
       *m_ioContext,
       [this, strand, imapClient, after = std::move(afterAppliedOnQtThread)]() mutable -> boost::asio::awaitable<void>
       {
-        std::vector<aurora::mail::imap::MailboxInfo> folders = co_await boost::asio::co_spawn(
-            *strand,
-            [imapClient]() -> boost::asio::awaitable<std::vector<aurora::mail::imap::MailboxInfo>>
-            {
-              auto result = co_await imapClient->asyncListMailboxes("", "*");
-              if (result.has_value())
+        // Detached coroutines that escape an exception terminate the whole
+        // process via std::terminate. For a WIN32_EXECUTABLE GUI app that
+        // surfaces as a "silent crash" with no message box and no console
+        // output. Wrap the body in a catch-all and route the failure back
+        // to the Qt thread instead, so the user at least sees a status
+        // message and the rest of the app keeps running.
+        try
+        {
+          std::vector<aurora::mail::imap::MailboxInfo> folders = co_await boost::asio::co_spawn(
+              *strand,
+              [imapClient]() -> boost::asio::awaitable<std::vector<aurora::mail::imap::MailboxInfo>>
               {
-                co_return std::move(result.value());
-              }
-              qWarning() << "Failed to list folders:" << QString::fromStdString(result.error().toString());
-              co_return std::vector<aurora::mail::imap::MailboxInfo>{};
-            },
-            boost::asio::use_awaitable);
+                auto result = co_await imapClient->asyncListMailboxes("", "*");
+                if (result.has_value())
+                {
+                  co_return std::move(result.value());
+                }
+                qWarning() << "Failed to list folders:" << QString::fromStdString(result.error().toString());
+                co_return std::vector<aurora::mail::imap::MailboxInfo>{};
+              },
+              boost::asio::use_awaitable);
 
-        QMetaObject::invokeMethod(
-            this,
-            [this, folders = std::move(folders), after = std::move(after)]() mutable
-            {
-              applyFolderList(std::move(folders));
-              if (after)
+          QMetaObject::invokeMethod(
+              this,
+              [this, folders = std::move(folders), after = std::move(after)]() mutable
               {
-                after();
-              }
-            },
-            Qt::QueuedConnection);
+                applyFolderList(std::move(folders));
+                if (after)
+                {
+                  after();
+                }
+              },
+              Qt::QueuedConnection);
+        }
+        catch (const std::exception& e)
+        {
+          const QString reason = QString::fromUtf8(e.what());
+          qWarning() << "loadFolders coroutine threw:" << reason;
+          QMetaObject::invokeMethod(
+              this,
+              [this, reason, after = std::move(after)]() mutable
+              {
+                showStatus(tr("Failed to load folders: %1").arg(reason));
+                if (after)
+                {
+                  after();
+                }
+              },
+              Qt::QueuedConnection);
+        }
+        catch (...)
+        {
+          qWarning() << "loadFolders coroutine threw a non-std exception";
+          QMetaObject::invokeMethod(
+              this,
+              [this, after = std::move(after)]() mutable
+              {
+                showStatus(tr("Failed to load folders (unknown error)"));
+                if (after)
+                {
+                  after();
+                }
+              },
+              Qt::QueuedConnection);
+        }
         co_return;
       },
       boost::asio::detached);
@@ -1787,7 +1848,11 @@ void MainWindow::onSendButtonClicked()
             {
               qDebug() << "Sending email: opening SMTP session (connect + AUTH + send)...";
 
-              co_await smtpClient->closeConnection();
+              try
+              {
+              // Best-effort cleanup of any prior socket before opening a new
+              // session; ignore the teardown result.
+              (void)co_await smtpClient->closeConnection();
 
               auto connectResult = co_await smtpClient->asyncConnect(smtpServer, smtpPort);
               if (!connectResult.has_value())
@@ -1859,6 +1924,33 @@ void MainWindow::onSendButtonClicked()
                     }
                   },
                   Qt::QueuedConnection);
+              }
+              catch (const std::exception& e)
+              {
+                qWarning() << "SMTP send coroutine threw:" << e.what();
+                QMetaObject::invokeMethod(
+                    this,
+                    [this, msg = QString::fromUtf8(e.what())]()
+                    {
+                      setUIEnabled(true);
+                      showError("Send Failed", QString("Unexpected error: %1").arg(msg));
+                    },
+                    Qt::QueuedConnection);
+              }
+              catch (...)
+              {
+                // Catch-all keeps a non-std exception from terminating the
+                // GUI app silently. See loadFolders() for context.
+                qWarning() << "SMTP send coroutine threw a non-std exception";
+                QMetaObject::invokeMethod(
+                    this,
+                    [this]()
+                    {
+                      setUIEnabled(true);
+                      showError("Send Failed", "Unexpected error while sending.");
+                    },
+                    Qt::QueuedConnection);
+              }
               co_return;
             },
             boost::asio::detached);
@@ -2481,8 +2573,20 @@ boost::asio::awaitable<void> MainWindow::dispatchImapOperation(const ImapOperati
         auto copyResult = co_await imapClient->asyncUidCopyMail(uidStr, destMailbox);
         if (copyResult.has_value())
         {
-          co_await imapClient->asyncUidStoreMail(uidStr, "+FLAGS (\\Deleted)");
-          co_await imapClient->asyncUidExpunge(uidStr);
+          // Mark the source copy deleted, then expunge it. If either step
+          // fails the message will appear in both mailboxes until the next
+          // sync, so surface the error instead of silently discarding it.
+          if (auto storeResult = co_await imapClient->asyncUidStoreMail(uidStr, "+FLAGS (\\Deleted)");
+              !storeResult.has_value())
+          {
+            qWarning() << "IMAP STORE +FLAGS Deleted failed for UID" << uidStr.c_str() << ":"
+                       << QString::fromStdString(storeResult.error().toString());
+          }
+          if (auto expungeResult = co_await imapClient->asyncUidExpunge(uidStr); !expungeResult.has_value())
+          {
+            qWarning() << "IMAP EXPUNGE failed for UID" << uidStr.c_str() << ":"
+                       << QString::fromStdString(expungeResult.error().toString());
+          }
           QMetaObject::invokeMethod(
               this,
               [this, uid, destinationMailbox]()

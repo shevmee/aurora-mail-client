@@ -13,6 +13,14 @@
 
 #include <boost/asio/ssl.hpp>
 #include <openssl/ssl.h>
+#include <openssl/x509.h>
+
+#ifdef Q_OS_WIN
+#  include <openssl/err.h>
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#  include <wincrypt.h>
+#endif
 
 #include "Ui/MainWindow.hpp"
 #include "IoContext/IoContextRunner.hpp"
@@ -91,6 +99,74 @@ bool ensureConfigExists()
     return false;
 }
 
+#ifdef Q_OS_WIN
+/**
+ * @brief Populate an OpenSSL trust store from the Windows Certificate Store.
+ *
+ * On macOS and Linux OpenSSL has well-known places (homebrew/openssl@3,
+ * /etc/ssl/certs, …) and ssl::context::set_default_verify_paths() is enough.
+ * On Windows OpenSSL ships *no* CA bundle, so set_default_verify_paths()
+ * succeeds silently and every TLS handshake then fails with
+ * "certificate verify failed (unable to get local issuer certificate)".
+ *
+ * The portable fix is to import the system trust roots into OpenSSL's
+ * X509_STORE on startup. We pull from "ROOT" (trusted CAs) and "CA"
+ * (intermediate CAs cached by Windows for chain building); the latter
+ * helps when servers don't send a complete chain. Both stores are read
+ * via the well-tested CryptoAPI; we never write to them.
+ *
+ * This avoids the alternative of shipping a static cert.pem (which would
+ * need rotation) or pinning a single CA (which would break for any other
+ * mail provider the user adds later).
+ */
+void loadWindowsRootCertificates(ssl::context& ctx)
+{
+    X509_STORE* store = SSL_CTX_get_cert_store(ctx.native_handle());
+    if (store == nullptr) {
+        qWarning() << "TLS: SSL_CTX_get_cert_store returned null; cannot import Windows roots";
+        return;
+    }
+
+    int importedCount = 0;
+    for (const char* storeName : { "ROOT", "CA" }) {
+        HCERTSTORE hSysStore = ::CertOpenSystemStoreA(0, storeName);
+        if (hSysStore == nullptr) {
+            qWarning() << "TLS: CertOpenSystemStoreA failed for store" << storeName;
+            continue;
+        }
+
+        PCCERT_CONTEXT pContext = nullptr;
+        while ((pContext = ::CertEnumCertificatesInStore(hSysStore, pContext)) != nullptr) {
+            // pbCertEncoded is DER (BLOB); d2i_X509 advances the pointer it is given,
+            // so feed it a local copy to leave the original BLOB untouched.
+            const unsigned char* encoded = pContext->pbCertEncoded;
+            X509* x509 = ::d2i_X509(nullptr, &encoded, static_cast<long>(pContext->cbCertEncoded));
+            if (x509 == nullptr) {
+                // Skip malformed certs silently – the Windows store occasionally
+                // contains test/legacy entries that OpenSSL refuses to parse.
+                ::ERR_clear_error();
+                continue;
+            }
+            // X509_STORE_add_cert returns 0 on duplicates (since the previous
+            // store name) – that is expected and not an error for us.
+            if (::X509_STORE_add_cert(store, x509) == 1) {
+                ++importedCount;
+            } else {
+                ::ERR_clear_error();
+            }
+            ::X509_free(x509);
+        }
+        ::CertCloseStore(hSysStore, 0);
+    }
+
+    if (importedCount == 0) {
+        qWarning() << "TLS: imported 0 root certificates from Windows store; TLS will fail";
+    } else {
+        qDebug() << "TLS: imported" << importedCount << "root certificates from Windows store";
+    }
+}
+#endif  // Q_OS_WIN
+
 /**
  * @brief Configures SSL context for secure mail connections.
  *
@@ -102,6 +178,14 @@ void configureSslContext(ssl::context& ctx)
 {
     ctx.set_verify_mode(ssl::verify_peer);
     ctx.set_default_verify_paths();
+
+#ifdef Q_OS_WIN
+    // OpenSSL on Windows ships no CA bundle, so set_default_verify_paths()
+    // is a no-op and every TLS handshake fails. Pull system roots from
+    // CryptoAPI to make verification actually succeed for IMAPS/SMTPS.
+    loadWindowsRootCertificates(ctx);
+#endif
+
     ctx.set_options(
         ssl::context::default_workarounds |
         ssl::context::no_sslv2 |
