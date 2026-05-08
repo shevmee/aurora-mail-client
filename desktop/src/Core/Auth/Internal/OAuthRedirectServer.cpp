@@ -1,6 +1,7 @@
 #include "OAuthRedirectServer.hpp"
 
 #include <QDebug>
+#include <QTcpServer>
 #include <QTcpSocket>
 #include <QUrl>
 #include <QUrlQuery>
@@ -120,7 +121,7 @@ void OAuthRedirectServer::processRequest(QTcpSocket* socket, const QByteArray& r
     return;
   }
 
-  QString path = requestLine[1];
+  const QString& path = requestLine[1];
 
   // Ignore favicon.ico and other irrelevant requests
   if (path.startsWith("/favicon"))

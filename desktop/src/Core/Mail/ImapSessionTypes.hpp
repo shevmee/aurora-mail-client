@@ -28,7 +28,7 @@ enum class ImapSessionLinkState : std::uint8_t
   Authenticated
 };
 
-enum class ImapOpType
+enum class ImapOpType : std::uint8_t
 {
   SelectMailbox,
   LoadEmail,

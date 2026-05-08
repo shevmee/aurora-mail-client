@@ -2,9 +2,9 @@
 #define OAUTHREDIRECTSERVER_HPP
 
 #include <QObject>
-#include <QTcpServer>
 
 class QTcpSocket;
+class QTcpServer;
 
 /**
  * @class OAuthRedirectServer

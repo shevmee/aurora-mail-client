@@ -1,13 +1,13 @@
 #ifndef AI_SERVICE_HPP
 #define AI_SERVICE_HPP
 
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <QObject>
 #include <QString>
 #include <functional>
 
 class GeminiProvider;
+class QNetworkAccessManager;
+class QNetworkReply;
 
 namespace aurora::mail::app::ai
 {
@@ -15,7 +15,7 @@ namespace aurora::mail::app::ai
   /**
    * @brief Supported cloud AI backends (extensible).
    */
-  enum class AiProviderKind : int
+  enum class AiProviderKind : std::uint8_t
   {
     Gemini = 0,
     // OpenAI = 1, // reserved
@@ -72,8 +72,10 @@ namespace aurora::mail::app::ai
     void errorOccurred(const QString& error);
 
    private:
-    void sendRequest(const QString& systemPrompt, const QString& userText, std::function<void(const Result&)> callback);
-    void handleResponse(QNetworkReply* reply, const QString& originalText, std::function<void(const Result&)> callback);
+    void
+    sendRequest(const QString& systemPrompt, const QString& userText, const std::function<void(const Result&)>& callback);
+    void
+    handleResponse(QNetworkReply* reply, const QString& originalText, const std::function<void(const Result&)>& callback);
 
     QString loadApiKey() const;
     void saveApiKey(const QString& key);

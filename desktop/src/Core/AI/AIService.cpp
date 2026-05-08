@@ -1,6 +1,8 @@
 #include "AIService.hpp"
 
 #include <QDebug>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include <QSettings>
 
 #include "AiApiKeyStorage.hpp"
@@ -165,8 +167,10 @@ Respond with ONLY the concise version, no explanations.)");
     sendRequest(systemPrompt, text, [this](const Result& result) { emit textImprovementCompleted(result); });
   }
 
-  void
-  AIService::sendRequest(const QString& systemPrompt, const QString& userText, std::function<void(const Result&)> callback)
+  void AIService::sendRequest(
+      const QString& systemPrompt,
+      const QString& userText,
+      const std::function<void(const Result&)>& callback)
   {
     if (!isConfigured())
     {
@@ -211,8 +215,10 @@ Respond with ONLY the concise version, no explanations.)");
         [this, reply, userText, callback]() { handleResponse(reply, userText, callback); });
   }
 
-  void
-  AIService::handleResponse(QNetworkReply* reply, const QString& originalText, std::function<void(const Result&)> callback)
+  void AIService::handleResponse(
+      QNetworkReply* reply,
+      const QString& originalText,
+      const std::function<void(const Result&)>& callback)
   {
     Result result;
     result.originalText = originalText;

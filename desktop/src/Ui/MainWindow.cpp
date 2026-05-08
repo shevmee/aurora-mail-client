@@ -1850,80 +1850,80 @@ void MainWindow::onSendButtonClicked()
 
               try
               {
-              // Best-effort cleanup of any prior socket before opening a new
-              // session; ignore the teardown result.
-              (void)co_await smtpClient->closeConnection();
+                // Best-effort cleanup of any prior socket before opening a new
+                // session; ignore the teardown result.
+                (void)co_await smtpClient->closeConnection();
 
-              auto connectResult = co_await smtpClient->asyncConnect(smtpServer, smtpPort);
-              if (!connectResult.has_value())
-              {
-                qWarning() << "SMTP connect failed:" << QString::fromStdString(connectResult.error().toString());
-                QMetaObject::invokeMethod(
-                    this,
-                    [this]()
-                    {
-                      setUIEnabled(true);
-                      showError("Send Failed", "Could not connect to the mail server.");
-                    },
-                    Qt::QueuedConnection);
-                co_return;
-              }
-
-              aurora::mail::smtp::command::AuthXOAuth2 smtpAuth{ username, accessToken };
-              auto authResult = co_await smtpClient->asyncAuthenticate(smtpAuth);
-              if (!authResult.has_value())
-              {
-                qWarning() << "SMTP auth failed:" << QString::fromStdString(authResult.error().toString());
-                QMetaObject::invokeMethod(
-                    this,
-                    [this]()
-                    {
-                      setUIEnabled(true);
-                      showError("Send Failed", "SMTP authentication failed. Please sign in again.");
-                    },
-                    Qt::QueuedConnection);
-                co_return;
-              }
-
-              auto sendResult = co_await smtpClient->asyncSendMail(mailMessage);
-              const bool ok = sendResult.has_value();
-              if (!ok)
-              {
-                qWarning() << "Failed to send email:" << QString::fromStdString(sendResult.error().toString());
-              }
-              else
-              {
-                qDebug() << "Email sent successfully";
-              }
-
-              QMetaObject::invokeMethod(
-                  this,
-                  [this, ok]()
-                  {
-                    setUIEnabled(true);
-                    if (ok)
-                    {
-                      showStatus("Email sent successfully!");
-                      clearComposeFields();
-                      ui->ContentStack->setCurrentIndex(static_cast<int>(EContentViewIndex::InboxView));
-                      // Sent copy is on the server in Sent, not in the SELECTed INBOX — IDLE won't
-                      // refresh Sent. Invalidate Sent cache and reload if the user was viewing Sent.
-                      const QString sentPath = gmailSentMailboxPath();
-                      if (m_emailListManager)
+                auto connectResult = co_await smtpClient->asyncConnect(smtpServer, smtpPort);
+                if (!connectResult.has_value())
+                {
+                  qWarning() << "SMTP connect failed:" << QString::fromStdString(connectResult.error().toString());
+                  QMetaObject::invokeMethod(
+                      this,
+                      [this]()
                       {
-                        m_emailListManager->invalidateMailboxCache(sentPath);
-                        if (m_currentMailbox.compare(sentPath, Qt::CaseInsensitive) == 0)
+                        setUIEnabled(true);
+                        showError("Send Failed", "Could not connect to the mail server.");
+                      },
+                      Qt::QueuedConnection);
+                  co_return;
+                }
+
+                aurora::mail::smtp::command::AuthXOAuth2 smtpAuth{ username, accessToken };
+                auto authResult = co_await smtpClient->asyncAuthenticate(smtpAuth);
+                if (!authResult.has_value())
+                {
+                  qWarning() << "SMTP auth failed:" << QString::fromStdString(authResult.error().toString());
+                  QMetaObject::invokeMethod(
+                      this,
+                      [this]()
+                      {
+                        setUIEnabled(true);
+                        showError("Send Failed", "SMTP authentication failed. Please sign in again.");
+                      },
+                      Qt::QueuedConnection);
+                  co_return;
+                }
+
+                auto sendResult = co_await smtpClient->asyncSendMail(mailMessage);
+                const bool ok = sendResult.has_value();
+                if (!ok)
+                {
+                  qWarning() << "Failed to send email:" << QString::fromStdString(sendResult.error().toString());
+                }
+                else
+                {
+                  qDebug() << "Email sent successfully";
+                }
+
+                QMetaObject::invokeMethod(
+                    this,
+                    [this, ok]()
+                    {
+                      setUIEnabled(true);
+                      if (ok)
+                      {
+                        showStatus("Email sent successfully!");
+                        clearComposeFields();
+                        ui->ContentStack->setCurrentIndex(static_cast<int>(EContentViewIndex::InboxView));
+                        // Sent copy is on the server in Sent, not in the SELECTed INBOX — IDLE won't
+                        // refresh Sent. Invalidate Sent cache and reload if the user was viewing Sent.
+                        const QString sentPath = gmailSentMailboxPath();
+                        if (m_emailListManager)
                         {
-                          loadEmails(false);
+                          m_emailListManager->invalidateMailboxCache(sentPath);
+                          if (m_currentMailbox.compare(sentPath, Qt::CaseInsensitive) == 0)
+                          {
+                            loadEmails(false);
+                          }
                         }
                       }
-                    }
-                    else
-                    {
-                      showError("Send Failed", "Failed to send the email. Please try again.");
-                    }
-                  },
-                  Qt::QueuedConnection);
+                      else
+                      {
+                        showError("Send Failed", "Failed to send the email. Please try again.");
+                      }
+                    },
+                    Qt::QueuedConnection);
               }
               catch (const std::exception& e)
               {
