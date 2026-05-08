@@ -20,6 +20,8 @@
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
 #  include <wincrypt.h>
+#  include <dbghelp.h>
+#  include <psapi.h>
 #endif
 
 #include "Ui/MainWindow.hpp"
@@ -100,6 +102,92 @@ bool ensureConfigExists()
 }
 
 #ifdef Q_OS_WIN
+/**
+ * @brief Top-level Windows SEH filter that diagnoses hard crashes (AV, etc.).
+ *
+ * The default behaviour for an unhandled structured exception in a
+ * WIN32_EXECUTABLE app is "process disappears, $LASTEXITCODE = 0xC0000005,
+ * no log, no message box". For a desktop user that is indistinguishable
+ * from `exit(0)`. This filter:
+ *   1. logs the exception code and the offending instruction address;
+ *   2. resolves the address to a module + offset via PSAPI so we know
+ *      whether it crashed in our code, in Qt, in OpenSSL, or in asio;
+ *   3. writes a minidump to %TEMP%\aurora-mail-crash-<pid>.dmp that can
+ *      be opened in WinDbg / Visual Studio for a full stack trace.
+ *
+ * We deliberately return EXCEPTION_EXECUTE_HANDLER after writing the dump
+ * so the process exits cleanly instead of letting Windows pop the generic
+ * "Aurora Mail has stopped working" dialog.
+ */
+LONG WINAPI auroraCrashFilter(EXCEPTION_POINTERS* info)
+{
+    if (info == nullptr || info->ExceptionRecord == nullptr) {
+        return EXCEPTION_EXECUTE_HANDLER;
+    }
+
+    const DWORD code = info->ExceptionRecord->ExceptionCode;
+    void* const addr = info->ExceptionRecord->ExceptionAddress;
+
+    // Resolve the offending address to <module>+<offset> to give us a
+    // fighting chance of debugging without a debugger attached.
+    char moduleName[MAX_PATH] = "<unknown>";
+    uintptr_t offset = 0;
+    HMODULE hMod = nullptr;
+    if (::GetModuleHandleExA(
+            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            static_cast<LPCSTR>(addr),
+            &hMod) != 0)
+    {
+        ::GetModuleFileNameA(hMod, moduleName, sizeof(moduleName));
+        offset = reinterpret_cast<uintptr_t>(addr) - reinterpret_cast<uintptr_t>(hMod);
+    }
+
+    qCritical().nospace()
+        << "Aurora crashed: SEH code=0x" << QString::number(code, 16)
+        << " addr=0x" << QString::number(reinterpret_cast<quintptr>(addr), 16)
+        << " in " << moduleName
+        << "+0x" << QString::number(offset, 16);
+
+    // Write a minidump for post-mortem analysis. Failure here is non-fatal
+    // — we still want to surface the crash text above.
+    char dumpPath[MAX_PATH] = {};
+    DWORD tempLen = ::GetTempPathA(sizeof(dumpPath), dumpPath);
+    if (tempLen > 0 && tempLen < sizeof(dumpPath) - 64) {
+        std::snprintf(
+            dumpPath + tempLen,
+            sizeof(dumpPath) - tempLen,
+            "aurora-mail-crash-%lu.dmp",
+            static_cast<unsigned long>(::GetCurrentProcessId()));
+
+        HANDLE hFile = ::CreateFileA(
+            dumpPath, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (hFile != INVALID_HANDLE_VALUE) {
+            MINIDUMP_EXCEPTION_INFORMATION mdei{};
+            mdei.ThreadId = ::GetCurrentThreadId();
+            mdei.ExceptionPointers = info;
+            mdei.ClientPointers = FALSE;
+
+            const BOOL ok = ::MiniDumpWriteDump(
+                ::GetCurrentProcess(),
+                ::GetCurrentProcessId(),
+                hFile,
+                MiniDumpWithDataSegs,
+                &mdei,
+                nullptr,
+                nullptr);
+            ::CloseHandle(hFile);
+            if (ok != FALSE) {
+                qCritical() << "Minidump written to" << dumpPath;
+            } else {
+                qWarning() << "MiniDumpWriteDump failed for" << dumpPath
+                           << ", GetLastError=" << ::GetLastError();
+            }
+        }
+    }
+
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
 /**
  * @brief Populate an OpenSSL trust store from the Windows Certificate Store.
  *
@@ -258,6 +346,14 @@ void configureFont(QApplication& app)
 
 int main(int argc, char *argv[])
 {
+#ifdef Q_OS_WIN
+    // Install before anything else: the SEH filter must be in place before
+    // any code path that might dereference a stale pointer (asio thread,
+    // Qt event loop, etc.). Otherwise hard crashes are silent and produce
+    // only an opaque $LASTEXITCODE = 0xC0000005.
+    ::SetUnhandledExceptionFilter(auroraCrashFilter);
+#endif
+
     configurePlatformSettings(); // Must be called before QApplication
 
 #ifdef Q_OS_MACOS

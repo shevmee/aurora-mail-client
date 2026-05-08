@@ -137,12 +137,14 @@ target_link_libraries(aurora-mail PRIVATE
     Qt${QT_VERSION_MAJOR}::Sql
 )
 
-# Windows: pull system root certificates from Wincrypt at startup. Without
-# this OpenSSL on Windows has no trust store and every IMAPS/SMTPS handshake
-# fails with "certificate verify failed". See loadWindowsRootCertificates()
-# in main.cpp for the runtime side.
+# Windows-only system libs:
+#   crypt32  – CertOpenSystemStoreA / CertEnumCertificatesInStore for the
+#              OpenSSL trust-store import (loadWindowsRootCertificates).
+#   dbghelp  – MiniDumpWriteDump for the SEH crash filter
+#              (auroraCrashFilter writes %TEMP%\aurora-mail-crash-<pid>.dmp).
+#   psapi    – GetModuleFileNameA for resolving the crash address to a DLL.
 if(WIN32)
-    target_link_libraries(aurora-mail PRIVATE crypt32)
+    target_link_libraries(aurora-mail PRIVATE crypt32 dbghelp psapi)
 endif()
 
 if(APPLE)
