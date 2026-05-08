@@ -1,0 +1,57 @@
+:root {
+    --bg-color: #1a1a2e;
+    --text-color: #e8e8e8;
+    --error-color: #ff5a5f;
+    --subtle-text-color: #8c8c9e;
+    --main-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--main-font);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.status-container {
+    text-align: center;
+    padding: 20px 40px;
+    max-width: 500px;
+}
+
+.status-icon-wrapper {
+    color: var(--error-color);
+    margin-bottom: 16px;
+}
+
+h1 {
+    font-size: 1.75rem;
+    margin: 0 0 16px 0;
+}
+
+.error-message {
+    font-size: 1rem;
+    color: var(--text-color);
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.guidance-text {
+    font-size: 0.9rem;
+    color: var(--subtle-text-color);
+}

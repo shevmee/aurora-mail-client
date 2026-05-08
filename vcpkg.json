@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "aurora-mail",
+  "version-string": "1.0.0",
+  "description": "Aurora Mail — cross-platform desktop mail client with async architecture and AI integration",
+  "homepage": "https://github.com/aurora-mail/aurora-mail",
+  "supports": "(windows | linux | osx) & !uwp",
+  "dependencies": [
+    {
+      "name": "qtbase",
+      "default-features": false,
+      "features": ["concurrent", "gui", "network", "sql", "sql-sqlite", "widgets"]
+    },
+    "qttools",
+    "qt5compat",
+    "qtkeychain",
+    {
+      "name": "boost-asio",
+      "version>=": "1.83.0"
+    },
+    "boost-system",
+    "boost-thread",
+    {
+      "name": "openssl",
+      "version>=": "3.0.0"
+    },
+    "gmime",
+    "nlohmann-json"
+  ],
+  "features": {
+    "tests": {
+      "description": "Build unit tests via GoogleTest",
+      "dependencies": ["gtest"]
+    }
+  }
+}

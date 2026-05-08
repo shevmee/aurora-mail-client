@@ -1,0 +1,2 @@
+add_subdirectory(IMessageCache)
+add_subdirectory(InMemoryMessageCache)

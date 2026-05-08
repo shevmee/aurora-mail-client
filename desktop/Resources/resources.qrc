@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/styles">
+        <file alias="styles.qss">styles.qss</file>
+    </qresource>
+    <!-- OAuth templates moved to src/Core/Auth/Resources/oauth_resources.qrc -->
+</RCC>

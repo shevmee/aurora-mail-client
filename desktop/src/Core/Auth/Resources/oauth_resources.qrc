@@ -1,0 +1,9 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/templates/oauth">
+        <file>success.html</file>
+        <file>success.css</file>
+        <file>error.html</file>
+        <file>error.css</file>
+    </qresource>
+</RCC>

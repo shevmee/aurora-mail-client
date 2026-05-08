@@ -1,0 +1,22 @@
+# Build
+build/
+cmake-build-*/
+out/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+*.user
+
+# Qt / generated
+*_autogen/
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# IDE
+.idea/
+.vscode/*.log
+
+# OS
+.DS_Store

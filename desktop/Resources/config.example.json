@@ -1,0 +1,15 @@
+{
+  "_comment": "Aurora Mail desktop configuration. Copy or rename this file to config.json under your platform's AppDataLocation (macOS: ~/Library/Application Support/Aurora; Linux: ~/.local/share/Aurora; Windows: %LOCALAPPDATA%/Aurora). See desktop/src/Core/Config/AppConfig.hpp for the schema.",
+
+  "timeout_seconds": 30,
+
+  "_locale_help": "BCP-47-ish locale tag for the UI. Supported out of the box: 'uk' (Ukrainian) and '' (system default, falls back to English source strings). Add more by writing a desktop/translations/aurora-mail_<tag>.ts file and rebuilding.",
+  "locale": "uk",
+
+  "logger": {
+    "level": "info",
+    "mode": "stdout",
+    "queueSize": 16384,
+    "rotateSizeBytes": 104857600
+  }
+}

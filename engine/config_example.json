@@ -1,0 +1,18 @@
+{
+  "timeout_seconds": 30,
+  "logger": {
+    "level": "debug",
+    "mode": "stdout",
+    "queueSize": 16384,
+    "rotateSizeBytes": 104857600,
+    "file": "mail-client.log"
+  },
+  "smtp": {
+    "host": "smtp.gmail.com",
+    "mode": "starttls"
+  },
+  "imap": {
+    "host": "imap.gmail.com",
+    "mode": "tls"
+  }
+}

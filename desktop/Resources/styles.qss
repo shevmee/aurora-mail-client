@@ -1,0 +1,826 @@
+/* ==========================================================================
+   AURORA MAIL CLIENT - Modern Dark Theme
+   A sophisticated email client interface with deep blues and vibrant accents
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   CSS Variables (Qt Custom Properties)
+   -------------------------------------------------------------------------- */
+
+/* 
+   Color Palette:
+   --bg-primary:     #0f1419  (Deep charcoal)
+   --bg-secondary:   #1a2332  (Navy blue)
+   --bg-tertiary:    #243447  (Lighter navy)
+   --bg-hover:       #2d4156  (Hover state)
+   --bg-selected:    #1d4ed8  (Selection blue)
+   
+   --text-primary:   #e7e9ea  (Almost white)
+   --text-secondary: #8899a6  (Muted gray)
+   --text-muted:     #5b7083  (Dark muted)
+   
+   --accent-primary: #3b82f6  (Vibrant blue)
+   --accent-hover:   #60a5fa  (Light blue)
+   --accent-success: #10b981  (Emerald green)
+   --accent-warning: #f59e0b  (Amber)
+   --accent-danger:  #ef4444  (Red)
+   
+   --border-color:   #38444d  (Subtle border)
+   --border-light:   #2f3943  (Lighter border)
+*/
+
+/* --------------------------------------------------------------------------
+   Global Styles
+   -------------------------------------------------------------------------- */
+
+QMainWindow {
+    background-color: #0f1419;
+    color: #e7e9ea;
+}
+
+QWidget {
+    background-color: transparent;
+    color: #e7e9ea;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+    font-size: 13px;
+}
+
+QWidget#centralwidget {
+    background-color: #0f1419;
+}
+
+/* --------------------------------------------------------------------------
+   Stacked Widgets & Containers
+   -------------------------------------------------------------------------- */
+
+QStackedWidget {
+    background-color: #0f1419;
+}
+
+QStackedWidget > QWidget {
+    background-color: #0f1419;
+}
+
+/* --------------------------------------------------------------------------
+   Login Page
+   -------------------------------------------------------------------------- */
+
+QWidget#LoginPage {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                                stop:0 #0f1419,
+                                stop:0.5 #1a2332,
+                                stop:1 #0f1419);
+}
+
+QWidget#LoginCard {
+    background-color: #1a2332;
+    border: 1px solid #38444d;
+    border-radius: 16px;
+}
+
+QLabel#LoginTitle {
+    color: #e7e9ea;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    border: none;
+    background: transparent;
+    /* Large title needs vertical room so subtitle is not painted on top */
+    min-height: 52px;
+    max-height: 64px;
+    padding-top: 4px;
+    padding-bottom: 8px;
+    margin-bottom: 0px;
+}
+
+QLabel#LoginSubtitle {
+    color: #8899a6;
+    font-size: 14px;
+    font-weight: 400;
+    border: none;
+    background: transparent;
+    min-height: 24px;
+    padding-top: 0px;
+    padding-bottom: 4px;
+    margin-top: 0px;
+}
+
+/* --------------------------------------------------------------------------
+   Text Inputs
+   -------------------------------------------------------------------------- */
+
+QLineEdit {
+    background-color: #243447;
+    border: 1px solid #38444d;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #e7e9ea;
+    font-size: 14px;
+    selection-background-color: #3b82f6;
+}
+
+QLineEdit:focus {
+    border: 2px solid #3b82f6;
+    background-color: #1a2332;
+}
+
+QLineEdit:hover:!focus {
+    border: 1px solid #5b7083;
+}
+
+QLineEdit::placeholder {
+    color: #5b7083;
+}
+
+QLineEdit:disabled {
+    background-color: #1a2332;
+    color: #5b7083;
+    border: 1px solid #2f3943;
+}
+
+/* --------------------------------------------------------------------------
+   Text Areas
+   -------------------------------------------------------------------------- */
+
+QTextEdit, QPlainTextEdit {
+    background-color: #1a2332;
+    border: 1px solid #38444d;
+    border-radius: 8px;
+    padding: 12px;
+    color: #e7e9ea;
+    font-size: 14px;
+    selection-background-color: #3b82f6;
+}
+
+QTextEdit:focus, QPlainTextEdit:focus {
+    border: 2px solid #3b82f6;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons - Primary
+   -------------------------------------------------------------------------- */
+
+QPushButton {
+    background-color: #3b82f6;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+QPushButton:hover {
+    background-color: #60a5fa;
+}
+
+QPushButton:pressed {
+    background-color: #2563eb;
+}
+
+QPushButton:disabled {
+    background-color: #243447;
+    color: #5b7083;
+}
+
+/* Sidebar: Compose is the only full primary CTA (distinct from mailbox rows) */
+QPushButton#ComposeButton {
+    background-color: #2563eb;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+QPushButton#ComposeButton:hover {
+    background-color: #3b82f6;
+}
+
+QPushButton#ComposeButton:pressed {
+    background-color: #1d4ed8;
+}
+
+/* Secondary Buttons */
+QPushButton#SecondaryButton, QPushButton[styleClass="secondary"] {
+    background-color: transparent;
+    color: #3b82f6;
+    border: 1px solid #3b82f6;
+}
+
+QPushButton#SecondaryButton:hover, QPushButton[styleClass="secondary"]:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #60a5fa;
+    border-color: #60a5fa;
+}
+
+/* Icon Buttons */
+QPushButton#IconButton, QPushButton[styleClass="icon"] {
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 8px;
+    min-width: 36px;
+    min-height: 36px;
+}
+
+QPushButton#IconButton:hover, QPushButton[styleClass="icon"]:hover {
+    background-color: #243447;
+}
+
+/* Danger Buttons */
+QPushButton#DangerButton, QPushButton[styleClass="danger"] {
+    background-color: #ef4444;
+}
+
+QPushButton#DangerButton:hover, QPushButton[styleClass="danger"]:hover {
+    background-color: #f87171;
+}
+
+/* Success Buttons */
+QPushButton#SuccessButton, QPushButton[styleClass="success"] {
+    background-color: #10b981;
+}
+
+QPushButton#SuccessButton:hover, QPushButton[styleClass="success"]:hover {
+    background-color: #34d399;
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar Navigation
+   -------------------------------------------------------------------------- */
+
+QWidget#Sidebar {
+    background-color: #1a2332;
+    border-right: 1px solid #38444d;
+}
+
+QWidget#SidebarToggleStrip {
+    background-color: #243447;
+    border-right: 1px solid #38444d;
+}
+
+QWidget#SidebarToggleStrip QPushButton {
+    background-color: transparent;
+    border: none;
+    color: #8899a6;
+    font-size: 12px;
+}
+
+QWidget#SidebarToggleStrip QPushButton:hover {
+    background-color: #2d4156;
+    color: #e7e9ea;
+}
+
+QLabel#SidebarLogo {
+    color: #e7e9ea;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: transparent;
+    border: none;
+}
+
+QLabel#SidebarEmail {
+    color: #8899a6;
+    font-size: 12px;
+    background: transparent;
+    border: none;
+}
+
+QToolButton#UserEmailLabel {
+    color: #8899a6;
+    font-size: 12px;
+    background: transparent;
+    border: none;
+    /* Reserve space on the right for the menu-indicator arrow so it doesn't
+       paint on top of the email text. */
+    padding: 2px 16px 2px 0;
+    text-align: left;
+}
+
+QToolButton#UserEmailLabel:hover {
+    color: #e7e9ea;
+}
+
+QToolButton#UserEmailLabel::menu-indicator {
+    subcontrol-origin: padding;
+    subcontrol-position: right center;
+    width: 12px;
+    height: 12px;
+    right: 2px;
+}
+
+/* Mailbox list (built-in + IMAP): one row style, not primary blue pills */
+QPushButton#NavButton,
+QPushButton#InboxButton,
+QPushButton#SentButton,
+QPushButton#DraftsButton,
+QPushButton#TrashButton,
+QPushButton[styleClass="nav"] {
+    background-color: transparent;
+    color: #8899a6;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+QPushButton#NavButton:hover,
+QPushButton#InboxButton:hover,
+QPushButton#SentButton:hover,
+QPushButton#DraftsButton:hover,
+QPushButton#TrashButton:hover,
+QPushButton[styleClass="nav"]:hover {
+    background-color: #243447;
+    color: #e7e9ea;
+}
+
+QPushButton#NavButton:checked,
+QPushButton#InboxButton:checked,
+QPushButton#SentButton:checked,
+QPushButton#DraftsButton:checked,
+QPushButton#TrashButton:checked,
+QPushButton[styleClass="nav"]:checked {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+/* Footer actions: secondary, not mailbox rows */
+QPushButton#SettingsButton,
+QPushButton#SignOutButton {
+    background-color: transparent;
+    color: #8899a6;
+    border: 1px solid #38444d;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+QPushButton#SettingsButton:hover,
+QPushButton#SignOutButton:hover {
+    background-color: #243447;
+    color: #e7e9ea;
+    border-color: #5b7083;
+}
+
+QScrollArea#FoldersScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+QScrollArea#FoldersScrollArea > QWidget > QWidget {
+    background-color: transparent;
+}
+
+/* Folder Tree in Sidebar */
+QTreeView#FolderTree {
+    background-color: transparent;
+    border: none;
+    outline: none;
+}
+
+QTreeView#FolderTree::item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 2px 8px;
+    color: #8899a6;
+}
+
+QTreeView#FolderTree::item:hover {
+    background-color: #243447;
+    color: #e7e9ea;
+}
+
+QTreeView#FolderTree::item:selected {
+    background-color: #3b82f6;
+    color: #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   Mail List (Inbox View)
+   -------------------------------------------------------------------------- */
+
+QScrollArea#MailListArea {
+    background-color: #1a2332;
+    border: none;
+    border-right: 1px solid #38444d;
+}
+
+/* Keep search bar visually separate from the first row (no overlap illusion) */
+QWidget#SearchContainer {
+    background-color: #1a2332;
+    border-bottom: 1px solid #2f3943;
+}
+
+QScrollArea#MailListArea > QWidget > QWidget {
+    background-color: #1a2332;
+}
+
+QWidget#MailListItem {
+    background-color: transparent;
+    border-bottom: 1px solid #2f3943;
+    padding: 12px 16px;
+}
+
+QWidget#MailListItem:hover {
+    background-color: #243447;
+}
+
+QWidget#MailListItem[selected="true"] {
+    background-color: #2d4156;
+    border-left: 3px solid #3b82f6;
+}
+
+/* Sender / Subject / Preview / Date labels are styled imperatively in
+ * EmailItemWidget (font, weight, palette) so they react to read/unread
+ * without QSS cascade gymnastics. Keep only structural rules here. */
+
+/* Message row avatar (initials), similar to mainstream mail clients */
+QLabel#AvatarBadge {
+    background-color: #2563eb;
+    color: #ffffff;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 13px;
+    min-width: 40px;
+    max-width: 40px;
+    min-height: 40px;
+    max-height: 40px;
+}
+
+/* --------------------------------------------------------------------------
+   Email Content View
+   -------------------------------------------------------------------------- */
+
+QWidget#EmailActionsBar {
+    background-color: #243447;
+    border-radius: 8px;
+    border: 1px solid #38444d;
+}
+
+QWidget#EmailContent {
+    background-color: #0f1419;
+}
+
+QWidget#EmailHeader {
+    background-color: #1a2332;
+    border-bottom: 1px solid #38444d;
+    padding: 20px;
+}
+
+QLabel#EmailSubject {
+    color: #e7e9ea;
+    font-size: 20px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+}
+
+QLabel#EmailMeta {
+    color: #8899a6;
+    font-size: 13px;
+    background: transparent;
+    border: none;
+}
+
+/* Legacy id from older UI; reader widget is EmailBodyText */
+QTextEdit#EmailBody, QTextBrowser#EmailBody {
+    background-color: #0f1419;
+    border: none;
+    padding: 20px;
+    color: #e7e9ea;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* List row previews / small QTextBrowser chips (not the message reader) */
+QTextBrowser {
+    background-color: #1a2332;
+    border: 1px solid #38444d;
+    border-radius: 8px;
+    padding: 12px;
+    color: #e7e9ea;
+    font-size: 14px;
+    selection-background-color: #3b82f6;
+}
+
+/*
+ * Message reader: default dark-theme text on QTextBrowser fights HTML that
+ * sets a light/white background — result is invisible gray-on-white. Use a
+ * fixed "paper" default (dark text, white page) like Apple Mail in dark mode.
+ */
+QTextBrowser#EmailBodyText {
+    background-color: #ffffff;
+    color: #14171a;
+    border: 1px solid #38444d;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 14px;
+    line-height: 1.6;
+    selection-background-color: #3b82f6;
+    selection-color: #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   Compose Email
+   -------------------------------------------------------------------------- */
+
+QWidget#ComposePanel {
+    background-color: #1a2332;
+    border: 1px solid #38444d;
+    border-radius: 12px;
+}
+
+QWidget#ComposeHeader {
+    background-color: #243447;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    padding: 16px;
+}
+
+QLabel#ComposeTitle {
+    color: #e7e9ea;
+    font-size: 16px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+}
+
+/* --------------------------------------------------------------------------
+   Scroll Bars
+   -------------------------------------------------------------------------- */
+
+QScrollBar:vertical {
+    background-color: transparent;
+    width: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #38444d;
+    border-radius: 4px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #5b7083;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+QScrollBar:horizontal {
+    background-color: transparent;
+    height: 8px;
+    margin: 0;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #38444d;
+    border-radius: 4px;
+    min-width: 30px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #5b7083;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Dividers & Separators
+   -------------------------------------------------------------------------- */
+
+QFrame#Divider, QWidget#Divider {
+    background-color: #38444d;
+    max-height: 1px;
+    min-height: 1px;
+}
+
+QFrame#VerticalDivider, QWidget#VerticalDivider {
+    background-color: #38444d;
+    max-width: 1px;
+    min-width: 1px;
+}
+
+/* --------------------------------------------------------------------------
+   Labels & Typography
+   -------------------------------------------------------------------------- */
+
+QLabel {
+    background: transparent;
+    border: none;
+}
+
+QLabel#Heading1 {
+    color: #e7e9ea;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+QLabel#Heading2 {
+    color: #e7e9ea;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+QLabel#Heading3 {
+    color: #e7e9ea;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+QLabel#TextMuted {
+    color: #5b7083;
+    font-size: 12px;
+}
+
+QLabel#TextSecondary {
+    color: #8899a6;
+    font-size: 13px;
+}
+
+/* --------------------------------------------------------------------------
+   Tool Tips
+   -------------------------------------------------------------------------- */
+
+QToolTip {
+    background-color: #243447;
+    color: #e7e9ea;
+    border: 1px solid #38444d;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   Menu & Dropdowns
+   -------------------------------------------------------------------------- */
+
+QMenu {
+    background-color: #1a2332;
+    border: 1px solid #38444d;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+QMenu::item {
+    padding: 8px 16px;
+    border-radius: 4px;
+    color: #e7e9ea;
+}
+
+QMenu::item:selected {
+    background-color: #243447;
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: #38444d;
+    margin: 4px 0;
+}
+
+/* --------------------------------------------------------------------------
+   Tab Widget (for Settings, etc.)
+   -------------------------------------------------------------------------- */
+
+QTabWidget::pane {
+    background-color: #1a2332;
+    border: 1px solid #38444d;
+    border-radius: 8px;
+}
+
+QTabBar::tab {
+    background-color: transparent;
+    color: #8899a6;
+    padding: 10px 20px;
+    border: none;
+    font-weight: 500;
+}
+
+QTabBar::tab:selected {
+    color: #3b82f6;
+    border-bottom: 2px solid #3b82f6;
+}
+
+QTabBar::tab:hover:!selected {
+    color: #e7e9ea;
+}
+
+/* --------------------------------------------------------------------------
+   Combo Box
+   -------------------------------------------------------------------------- */
+
+QComboBox {
+    background-color: #243447;
+    border: 1px solid #38444d;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #e7e9ea;
+    font-size: 14px;
+}
+
+QComboBox:hover {
+    border-color: #5b7083;
+}
+
+QComboBox:focus {
+    border: 2px solid #3b82f6;
+}
+
+QComboBox::drop-down {
+    border: none;
+    padding-right: 10px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #1a2332;
+    border: 1px solid #38444d;
+    border-radius: 8px;
+    selection-background-color: #243447;
+    color: #e7e9ea;
+}
+
+/* --------------------------------------------------------------------------
+   Check Box
+   -------------------------------------------------------------------------- */
+
+QCheckBox {
+    color: #e7e9ea;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid #38444d;
+    background-color: transparent;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #5b7083;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+/* --------------------------------------------------------------------------
+   Progress & Loading
+   -------------------------------------------------------------------------- */
+
+QProgressBar {
+    background-color: #243447;
+    border: none;
+    border-radius: 4px;
+    height: 8px;
+    text-align: center;
+}
+
+QProgressBar::chunk {
+    background-color: #3b82f6;
+    border-radius: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   Status Bar
+   -------------------------------------------------------------------------- */
+
+QStatusBar {
+    background-color: #1a2332;
+    border-top: 1px solid #38444d;
+    color: #8899a6;
+    font-size: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   Message Boxes & Dialogs
+   -------------------------------------------------------------------------- */
+
+QMessageBox {
+    background-color: #1a2332;
+}
+
+QMessageBox QLabel {
+    color: #e7e9ea;
+    font-size: 14px;
+}
+
+QDialog {
+    background-color: #1a2332;
+}
+
