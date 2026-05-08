@@ -33,8 +33,16 @@ namespace aurora::mail::common::mime
       }
 
       gboolean uncertain = FALSE;
-      gchar* guessed_type =
-          g_content_type_guess(path.filename().c_str(), buffer.empty() ? nullptr : buffer.data(), buffer.size(), &uncertain);
+      // std::filesystem::path::c_str() returns wchar_t* on Windows and char*
+      // on POSIX. gmime/gio expects a UTF-8 const char* on every platform, so
+      // funnel the filename through std::filesystem::path::string() which
+      // produces a host-encoded std::string. For the plain ASCII attachment
+      // names this routine is exercised with that is sufficient; if non-ASCII
+      // filenames become a real requirement on Windows, switch to
+      // path::u8string() and reinterpret_cast the resulting char8_t buffer.
+      const std::string filename_utf8 = path.filename().string();
+      gchar* guessed_type = g_content_type_guess(
+          filename_utf8.c_str(), buffer.empty() ? nullptr : buffer.data(), buffer.size(), &uncertain);
 
       if (guessed_type == nullptr)
       {
@@ -42,7 +50,7 @@ namespace aurora::mail::common::mime
       }
 
       gchar* mime_type = g_content_type_get_mime_type(guessed_type);
-      std::string result = mime_type ? mime_type : "application/octet-stream";
+      std::string result = mime_type != nullptr ? mime_type : "application/octet-stream";
 
       g_free(guessed_type);
       g_free(mime_type);
@@ -64,8 +72,21 @@ namespace aurora::mail::common::mime
     // Helper to create a GMimeStreamFile for streaming file access
     GMimeStream* createFileStream(const std::filesystem::path& path)
     {
+      // path::c_str() is wchar_t* on Windows. Use the platform's wide-char
+      // fopen there so paths with non-ASCII characters round-trip correctly;
+      // POSIX takes the narrow path directly. We deliberately do not fall
+      // back to path::string() on Windows because it would lose information
+      // for paths outside the system codepage.
+#ifdef _WIN32
+      FILE* file = nullptr;
+      if (_wfopen_s(&file, path.c_str(), L"rb") != 0)
+      {
+        return nullptr;
+      }
+#else
       FILE* file = std::fopen(path.c_str(), "rb");
-      if (!file)
+#endif
+      if (file == nullptr)
       {
         return nullptr;
       }
@@ -175,7 +196,7 @@ namespace aurora::mail::common::mime
     void addAttachment(GMimeMultipart* multipart, const mail::MailAttachment& attachment)
     {
       GMimeStream* file_stream = createFileStream(attachment.getPath());
-      if (!file_stream)
+      if (file_stream == nullptr)
       {
         std::cerr << "Warning: Failed to open attachment file: " << attachment.getPath().string() << '\n';
         return;
@@ -255,7 +276,7 @@ namespace aurora::mail::common::mime
       // Ensure GMime is initialized via shared MimeContext
       getMimeContext();
 
-      GMimeMessage* mime_message = g_mime_message_new(true);
+      GMimeMessage* mime_message = g_mime_message_new(TRUE);
 
       // Set all headers
       setFromAddress(mime_message, message.from);

@@ -8,6 +8,15 @@
 #include <cstring>
 #include <sstream>
 
+#ifdef _WIN32
+// MSVC ships POSIX strcasecmp as _stricmp under <string.h>. The behaviour is
+// identical for ASCII input (which is all the MIME header parsing below
+// produces), so a translation macro keeps the call sites portable without
+// dragging in <strings.h> (POSIX-only).
+#  include <string.h>
+#  define strcasecmp _stricmp
+#endif
+
 namespace aurora::mail::common::mime
 {
   namespace
@@ -20,7 +29,7 @@ namespace aurora::mail::common::mime
     // Convert GMime address to MailAddress
     MailAddress gmimeToMailAddress(InternetAddress* addr)
     {
-      if (!addr || !INTERNET_ADDRESS_IS_MAILBOX(addr))
+      if (addr == nullptr || !INTERNET_ADDRESS_IS_MAILBOX(addr))
       {
         return {};
       }
@@ -91,7 +100,7 @@ namespace aurora::mail::common::mime
     std::string extractTextContent(GMimePart* part)
     {
       GMimeDataWrapper* wrapper = g_mime_part_get_content(part);
-      if (!wrapper)
+      if (wrapper == nullptr)
         return "";
 
       GMimeStream* stream = g_mime_stream_mem_new();
@@ -106,17 +115,17 @@ namespace aurora::mail::common::mime
       GMimeContentType* content_type = g_mime_object_get_content_type(GMIME_OBJECT(part));
       const char* charset = g_mime_content_type_get_parameter(content_type, "charset");
 
-      if (charset && strcasecmp(charset, "utf-8") != 0 && strcasecmp(charset, "us-ascii") != 0)
+      if (charset != nullptr && strcasecmp(charset, "utf-8") != 0 && strcasecmp(charset, "us-ascii") != 0)
       {
         GError* error = nullptr;
         gchar* converted =
             g_convert(content.data(), static_cast<long>(content.size()), "UTF-8", charset, nullptr, nullptr, &error);
-        if (converted)
+        if (converted != nullptr)
         {
           content = converted;
           g_free(converted);
         }
-        if (error)
+        if (error != nullptr)
         {
           g_error_free(error);
         }
@@ -131,13 +140,13 @@ namespace aurora::mail::common::mime
       ParsedAttachment attachment;
 
       const char* filename = g_mime_part_get_filename(part);
-      attachment.filename = filename ? filename : "unnamed";
+      attachment.filename = filename != nullptr ? filename : "unnamed";
 
       GMimeContentType* content_type = g_mime_object_get_content_type(GMIME_OBJECT(part));
-      if (content_type)
+      if (content_type != nullptr)
       {
         char* type_str = g_mime_content_type_get_mime_type(content_type);
-        if (type_str)
+        if (type_str != nullptr)
         {
           attachment.content_type = type_str;
           g_free(type_str);
@@ -147,20 +156,20 @@ namespace aurora::mail::common::mime
       // Content-ID is used for inline images referenced in HTML via cid: URLs.
       // UI should replace <img src="cid:xyz"> with actual image data.
       const char* content_id = g_mime_object_get_content_id(GMIME_OBJECT(part));
-      if (content_id)
+      if (content_id != nullptr)
       {
         attachment.content_id = content_id;
       }
 
       GMimeContentDisposition* disposition = g_mime_object_get_content_disposition(GMIME_OBJECT(part));
-      if (disposition)
+      if (disposition != nullptr)
       {
         const char* disp_str = g_mime_content_disposition_get_disposition(disposition);
-        attachment.is_inline = disp_str && strcasecmp(disp_str, "inline") == 0;
+        attachment.is_inline = disp_str != nullptr && strcasecmp(disp_str, "inline") == 0;
       }
 
       GMimeDataWrapper* wrapper = g_mime_part_get_content(part);
-      if (wrapper)
+      if (wrapper != nullptr)
       {
         GMimeStream* stream = g_mime_stream_mem_new();
         g_mime_data_wrapper_write_to_stream(wrapper, stream);
@@ -177,17 +186,17 @@ namespace aurora::mail::common::mime
     // Process a single MIME part (recursive)
     void processMimePart(GMimeObject* part, ReceivedMailMessage& msg)
     {
-      if (!part)
+      if (part == nullptr)
         return;
 
       GMimeContentType* content_type = g_mime_object_get_content_type(part);
-      if (!content_type)
+      if (content_type == nullptr)
         return;
 
       const char* type = g_mime_content_type_get_media_type(content_type);
       const char* subtype = g_mime_content_type_get_media_subtype(content_type);
 
-      if (!type)
+      if (type == nullptr)
         return;
 
       if (GMIME_IS_MULTIPART(part))
@@ -199,9 +208,9 @@ namespace aurora::mail::common::mime
         GMimePart* mime_part = GMIME_PART(part);
 
         GMimeContentDisposition* disposition = g_mime_object_get_content_disposition(part);
-        const char* disp_str = disposition ? g_mime_content_disposition_get_disposition(disposition) : nullptr;
+        const char* disp_str = disposition != nullptr ? g_mime_content_disposition_get_disposition(disposition) : nullptr;
 
-        bool is_attachment = disp_str && strcasecmp(disp_str, "attachment") == 0;
+        bool is_attachment = disp_str != nullptr && strcasecmp(disp_str, "attachment") == 0;
 
         if (strcasecmp(type, "text") == 0 && !is_attachment)
         {
@@ -233,7 +242,7 @@ namespace aurora::mail::common::mime
         GMimeMessagePart* msg_part = GMIME_MESSAGE_PART(part);
         GMimeMessage* embedded = g_mime_message_part_get_message(msg_part);
 
-        if (embedded)
+        if (embedded != nullptr)
         {
           ParsedAttachment attachment;
           attachment.filename = "message.eml";
@@ -256,20 +265,20 @@ namespace aurora::mail::common::mime
     void extractHeaders(GMimeMessage* message, ReceivedMailMessage& msg)
     {
       GMimeHeaderList* headers = g_mime_object_get_header_list(GMIME_OBJECT(message));
-      if (!headers)
+      if (headers == nullptr)
         return;
 
       int count = g_mime_header_list_get_count(headers);
       for (int i = 0; i < count; ++i)
       {
         GMimeHeader* header = g_mime_header_list_get_header_at(headers, i);
-        if (!header)
+        if (header == nullptr)
           continue;
 
         const char* name = g_mime_header_get_name(header);
         const char* value = g_mime_header_get_value(header);
 
-        if (name && value)
+        if (name != nullptr && value != nullptr)
         {
           msg.headers[toLower(name)] = value;
         }
@@ -298,7 +307,7 @@ namespace aurora::mail::common::mime
       g_object_unref(parser);
       g_object_unref(stream);
 
-      if (!message)
+      if (message == nullptr)
       {
         return std::unexpected(MimeParseError{ MimeParseError::Type::InvalidFormat, "Failed to parse message structure" });
       }
@@ -306,13 +315,13 @@ namespace aurora::mail::common::mime
       ReceivedMailMessage result;
 
       const char* subject = g_mime_message_get_subject(message);
-      result.subject = subject ? subject : "";
+      result.subject = subject != nullptr ? subject : "";
 
       const char* message_id = g_mime_message_get_message_id(message);
-      result.email_threading.message_id = message_id ? message_id : "";
+      result.email_threading.message_id = message_id != nullptr ? message_id : "";
 
       const char* date_header_str = g_mime_object_get_header(GMIME_OBJECT(message), "Date");
-      if (date_header_str)
+      if (date_header_str != nullptr)
       {
         auto parsed_date = parseDate(date_header_str);
 
@@ -324,7 +333,7 @@ namespace aurora::mail::common::mime
       }
 
       InternetAddressList* from_list = g_mime_message_get_from(message);
-      if (from_list && internet_address_list_length(from_list) > 0)
+      if (from_list != nullptr && internet_address_list_length(from_list) > 0)
       {
         auto from_addrs = extractAddresses(from_list);
         if (!from_addrs.empty())
@@ -334,7 +343,7 @@ namespace aurora::mail::common::mime
       }
 
       InternetAddressList* reply_to_list = g_mime_message_get_reply_to(message);
-      if (reply_to_list && internet_address_list_length(reply_to_list) > 0)
+      if (reply_to_list != nullptr && internet_address_list_length(reply_to_list) > 0)
       {
         auto reply_to_addrs = extractAddresses(reply_to_list);
         if (!reply_to_addrs.empty())
@@ -370,7 +379,7 @@ namespace aurora::mail::common::mime
       }
 
       GMimeObject* mime_part = g_mime_message_get_mime_part(message);
-      if (mime_part)
+      if (mime_part != nullptr)
       {
         processMimePart(mime_part, result);
       }
@@ -406,7 +415,7 @@ namespace aurora::mail::common::mime
       g_object_unref(parser);
       g_object_unref(stream);
 
-      if (!message)
+      if (message == nullptr)
       {
         return std::unexpected(MimeParseError{ MimeParseError::Type::InvalidFormat, "Failed to parse headers" });
       }
@@ -414,20 +423,20 @@ namespace aurora::mail::common::mime
       ReceivedMailMessage result;
 
       const char* subject = g_mime_message_get_subject(message);
-      result.subject = subject ? subject : "";
+      result.subject = subject != nullptr ? subject : "";
 
       const char* message_id = g_mime_message_get_message_id(message);
-      result.email_threading.message_id = message_id ? message_id : "";
+      result.email_threading.message_id = message_id != nullptr ? message_id : "";
 
       GDateTime* date = g_mime_message_get_date(message);
-      if (date)
+      if (date != nullptr)
       {
         result.date = std::chrono::system_clock::from_time_t(g_date_time_to_unix(date));
         result.has_date = true;
       }
 
       InternetAddressList* from_list = g_mime_message_get_from(message);
-      if (from_list && internet_address_list_length(from_list) > 0)
+      if (from_list != nullptr && internet_address_list_length(from_list) > 0)
       {
         auto from_addrs = extractAddresses(from_list);
         if (!from_addrs.empty())
@@ -473,7 +482,7 @@ namespace aurora::mail::common::mime
 
       char* decoded = g_mime_utils_header_decode_text(nullptr, std::string(encoded).c_str());
 
-      if (!decoded)
+      if (decoded == nullptr)
       {
         return std::string(encoded);
       }
@@ -493,7 +502,7 @@ namespace aurora::mail::common::mime
       {
         gsize out_len = 0;
         guint8* decoded = g_base64_decode(std::string(encoded).c_str(), &out_len);
-        if (!decoded)
+        if (decoded == nullptr)
         {
           return std::unexpected(MimeParseError{ MimeParseError::Type::EncodingError, "Failed to decode base64 content" });
         }
@@ -567,7 +576,7 @@ namespace aurora::mail::common::mime
           &bytes_written,
           &error);
 
-      if (error)
+      if (error != nullptr)
       {
         std::string error_msg = error->message;
         g_error_free(error);
@@ -585,7 +594,7 @@ namespace aurora::mail::common::mime
       getMimeContext();
 
       GDateTime* date = g_mime_utils_header_decode_date(std::string(date_str).c_str());
-      if (!date)
+      if (date == nullptr)
       {
         return std::nullopt;
       }
@@ -601,7 +610,7 @@ namespace aurora::mail::common::mime
 
       InternetAddressList* list = internet_address_list_parse(nullptr, std::string(header_value).c_str());
 
-      if (!list)
+      if (list == nullptr)
       {
         return {};
       }

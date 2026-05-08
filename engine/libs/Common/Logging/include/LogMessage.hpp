@@ -106,7 +106,13 @@ namespace aurora::mail::common::logger
     const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(msg.ts.time_since_epoch()) % 1000;
 
     std::tm local_tm{};
+#ifdef _WIN32
+    // MSVC does not implement POSIX localtime_r. localtime_s has the same
+    // thread-safety guarantee but reverses the argument order.
+    localtime_s(&local_tm, &tt);
+#else
     localtime_r(&tt, &local_tm);
+#endif
 
     os << std::put_time(&local_tm, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << " ["
        << to_display_string(msg.level) << "] ";
