@@ -9,7 +9,8 @@ namespace
   [[nodiscard]] constexpr std::string_view trim(std::string_view s) noexcept
   {
     const size_t start = s.find_first_not_of("\r\n\t ");
-    if (start == std::string_view::npos) {
+    if (start == std::string_view::npos)
+    {
       return std::string_view{};
     }
     const size_t end = s.find_last_not_of("\r\n\t ");
@@ -31,10 +32,12 @@ namespace aurora::mail::imap::response
 
       // Read the first token (tag: '*', '+', or 'A001')
       auto tag_val = tok.nextValue();
-      if (!tag_val) break;
+      if (!tag_val)
+        break;
 
       auto tag_str_opt = parser::getAtomValue(*tag_val);
-      if (!tag_str_opt) {
+      if (!tag_str_opt)
+      {
         return std::unexpected(std::format("Expected tag at position {}", line_start));
       }
       std::string_view tag = *tag_str_opt;
@@ -46,8 +49,10 @@ namespace aurora::mail::imap::response
         ur.line = raw_response.substr(line_start);
 
         auto cmd_val = tok.nextValue();
-        if (cmd_val) {
-          if (auto cmd_str = parser::getAtomValue(*cmd_val)) {
+        if (cmd_val)
+        {
+          if (auto cmd_str = parser::getAtomValue(*cmd_val))
+          {
             ur.command = *cmd_str;
           }
           ur.parsed_values.push_back(std::move(*cmd_val));
@@ -57,24 +62,27 @@ namespace aurora::mail::imap::response
 
         // Read remaining values until end of line (CRLF)
         // Tokenizer will correctly skip through literals {N}\r\n...
-        while (tok.position() < raw_response.size()) {
-            // If we reached the end of the line (outside literals)
-            if (raw_response[tok.position()] == '\r' || raw_response[tok.position()] == '\n') {
-                break;
-            }
-            
-            auto val = tok.nextValue();
-            if (!val) break;
-            ur.parsed_values.push_back(std::move(*val));
+        while (tok.position() < raw_response.size())
+        {
+          // If we reached the end of the line (outside literals)
+          if (raw_response[tok.position()] == '\r' || raw_response[tok.position()] == '\n')
+          {
+            break;
+          }
+
+          auto val = tok.nextValue();
+          if (!val)
+            break;
+          ur.parsed_values.push_back(std::move(*val));
         }
 
         // Calculate raw data without allocations and std::visit!
         size_t data_end = tok.position();
         ur.data = trim(raw_response.substr(data_start, data_end - data_start));
-        
+
         // Correct the length of the entire string
         ur.line = trim(raw_response.substr(line_start, data_end - line_start));
-        
+
         resp.untagged.push_back(std::move(ur));
 
         // Step past the CR/LF separating this untagged line from the next one.
@@ -87,21 +95,24 @@ namespace aurora::mail::imap::response
       {
         // --- Parse Tagged Response (End of command) ---
         resp.tag = tag;
-        
+
         auto status_val = tok.nextValue();
-        if (status_val) {
-            if (auto status_str = parser::getAtomValue(*status_val)) {
-                resp.status = stringToStatusType(*status_str);
-            }
+        if (status_val)
+        {
+          if (auto status_str = parser::getAtomValue(*status_val))
+          {
+            resp.status = stringToStatusType(*status_str);
+          }
         }
 
         size_t text_start = tok.position();
         // Find the end of the line
         size_t text_end = raw_response.find('\n', text_start);
-        if (text_end == std::string_view::npos) text_end = raw_response.size();
-        
+        if (text_end == std::string_view::npos)
+          text_end = raw_response.size();
+
         resp.text = trim(raw_response.substr(text_start, text_end - text_start));
-        
+
         // Tagged response is always the last, end parsing
         break;
       }
@@ -114,7 +125,7 @@ namespace aurora::mail::imap::response
       {
         const auto& first = resp.untagged[0];
         resp.tag = "*";
-        resp.status = stringToStatusType(std::string{first.command}); // stringToStatusType accepts string_view
+        resp.status = stringToStatusType(std::string{ first.command });  // stringToStatusType accepts string_view
         resp.text = first.data;
 
         if (resp.status != StatusType::OK && resp.status != StatusType::PREAUTH && resp.status != StatusType::BYE)
@@ -126,10 +137,11 @@ namespace aurora::mail::imap::response
       return std::unexpected("Invalid IMAP greeting format");
     }
 
-    if (resp.tag.empty() && !resp.untagged.empty()) {
-        resp.tag = "*";
-        resp.status = StatusType::OK;
-        resp.text = "Untagged server notification";
+    if (resp.tag.empty() && !resp.untagged.empty())
+    {
+      resp.tag = "*";
+      resp.status = StatusType::OK;
+      resp.text = "Untagged server notification";
     }
 
     return resp;
@@ -137,9 +149,7 @@ namespace aurora::mail::imap::response
 
   bool isGreetingLine(std::string_view line) noexcept
   {
-    return line.starts_with("* OK") || 
-           line.starts_with("* PREAUTH") || 
-           line.starts_with("* BYE");
+    return line.starts_with("* OK") || line.starts_with("* PREAUTH") || line.starts_with("* BYE");
   }
 
 }  // namespace aurora::mail::imap::response

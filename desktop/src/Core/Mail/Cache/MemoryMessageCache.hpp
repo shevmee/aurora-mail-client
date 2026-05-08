@@ -1,9 +1,6 @@
 #ifndef AURORA_MAIL_CACHE_MEMORY_MESSAGE_CACHE_HPP
 #define AURORA_MAIL_CACHE_MEMORY_MESSAGE_CACHE_HPP
 
-#include "IMessageCache.hpp"
-#include "MessageKey.hpp"
-
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -13,30 +10,33 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "IMessageCache.hpp"
+#include "MessageKey.hpp"
+
 namespace aurora::mail::app::cache
 {
 
-/**
- * In-memory tier of the message cache.
- *
- * Implementation is a single-map LRU: one std::unordered_map keyed by MessageKey
- * holds (shared_ptr<const CachedMessage>, list_iterator) pairs, and a std::list of
- * keys serves as the recency order. This replaces the previous three-map design
- * (`map_`, `content_`, `lru_`) which required keeping three containers in sync.
- *
- * Eviction is governed by two independent budgets that are BOTH enforced:
- *  - `maxEntries`: count-based (legacy default of 64 retained as a sane floor).
- *  - `maxBytes`:   byte-based, summing CachedMessage::approximateBytes across all
- *                  resident entries. This is the only reliable cap once messages
- *                  carry attachments.
- *
- * tryGet() returns std::shared_ptr<const CachedMessage>: the value graph is shared
- * by reference, so the read path performs no deep copy of attachments under the
- * cache mutex. CachedMessage is treated as immutable once inserted.
- */
-class MemoryMessageCache final : public IMessageCache
-{
-public:
+  /**
+   * In-memory tier of the message cache.
+   *
+   * Implementation is a single-map LRU: one std::unordered_map keyed by MessageKey
+   * holds (shared_ptr<const CachedMessage>, list_iterator) pairs, and a std::list of
+   * keys serves as the recency order. This replaces the previous three-map design
+   * (`map_`, `content_`, `lru_`) which required keeping three containers in sync.
+   *
+   * Eviction is governed by two independent budgets that are BOTH enforced:
+   *  - `maxEntries`: count-based (legacy default of 64 retained as a sane floor).
+   *  - `maxBytes`:   byte-based, summing CachedMessage::approximateBytes across all
+   *                  resident entries. This is the only reliable cap once messages
+   *                  carry attachments.
+   *
+   * tryGet() returns std::shared_ptr<const CachedMessage>: the value graph is shared
+   * by reference, so the read path performs no deep copy of attachments under the
+   * cache mutex. CachedMessage is treated as immutable once inserted.
+   */
+  class MemoryMessageCache final : public IMessageCache
+  {
+   public:
     /// Default cap of 64 entries / 64 MiB matches the previous behaviour for tiny
     /// messages while preventing runaway memory once attachments are involved.
     static constexpr std::size_t kDefaultMaxEntries = 64;
@@ -64,11 +64,11 @@ public:
     /// Adjust budgets at runtime (clamps current size to the new caps).
     void setBudgets(std::size_t maxEntries, std::size_t maxBytes);
 
-private:
+   private:
     struct Entry
     {
-        std::shared_ptr<const CachedMessage> value;
-        std::list<MessageKey>::iterator recency;  // points into recency_
+      std::shared_ptr<const CachedMessage> value;
+      std::list<MessageKey>::iterator recency;  // points into recency_
     };
 
     /// Caller MUST hold mutex_. Drops oldest entries until both budgets hold.
@@ -90,12 +90,12 @@ private:
     std::size_t bytesResident_ = 0;
 
     // Counters are atomic so stats() can be called without taking the cache mutex.
-    std::atomic<std::uint64_t> hits_{0};
-    std::atomic<std::uint64_t> misses_{0};
-    std::atomic<std::uint64_t> puts_{0};
-    std::atomic<std::uint64_t> evictions_{0};
-    std::atomic<std::uint64_t> invalidations_{0};
-};
+    std::atomic<std::uint64_t> hits_{ 0 };
+    std::atomic<std::uint64_t> misses_{ 0 };
+    std::atomic<std::uint64_t> puts_{ 0 };
+    std::atomic<std::uint64_t> evictions_{ 0 };
+    std::atomic<std::uint64_t> invalidations_{ 0 };
+  };
 
 }  // namespace aurora::mail::app::cache
 

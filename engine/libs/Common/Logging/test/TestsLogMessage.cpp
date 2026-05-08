@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <LogMessage.hpp>
-
 #include <source_location>
 #include <string>
 
@@ -29,7 +28,7 @@ TEST(LogMessageTest, TruncatesOversizedText)
 
   EXPECT_EQ(msg.level, LogLevel::Warn);
   EXPECT_EQ(std::strlen(msg.text.data()), MAX_LOG_TEXT_SIZE - 1);
-  
+
   for (std::size_t i = 0; i < MAX_LOG_TEXT_SIZE - 1; ++i)
   {
     EXPECT_EQ(msg.text[i], 'x');
@@ -111,7 +110,7 @@ TEST(LogMessageTest, StoresEmptyText)
 TEST(LogMessageTest, TruncatesAtEmbeddedNullWhenObservedAsCString)
 {
   const auto ts = std::chrono::system_clock::time_point{};
-  const std::string_view text{"abc\0def", 7};
+  const std::string_view text{ "abc\0def", 7 };
 
   LogMessage msg(LogLevel::Info, text, ts, {}, 0, {});
 

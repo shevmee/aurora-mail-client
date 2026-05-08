@@ -22,23 +22,23 @@ using AiSecureBackend = SettingsBackend;
  */
 class AiApiKeyStorage
 {
-public:
-    explicit AiApiKeyStorage(
-        const QString& organization = QStringLiteral("AuroraMail"),
-        const QString& application = QStringLiteral("AuroraMail"));
+ public:
+  explicit AiApiKeyStorage(
+      const QString& organization = QStringLiteral("AuroraMail"),
+      const QString& application = QStringLiteral("AuroraMail"));
 
-    [[nodiscard]] QString load() const;
-    void save(const QString& apiKey);
-    void clear();
+  [[nodiscard]] QString load() const;
+  void save(const QString& apiKey);
+  void clear();
 
-    [[nodiscard]] static constexpr bool isSecureStorageEnabled() noexcept
-    {
-        return AiSecureBackend::isSecure();
-    }
+  [[nodiscard]] static constexpr bool isSecureStorageEnabled() noexcept
+  {
+    return AiSecureBackend::isSecure();
+  }
 
-private:
-    AiSecureBackend backend_;
-    static constexpr const char* STORAGE_KEY = "ai_gemini_api_key";
+ private:
+  AiSecureBackend backend_;
+  static constexpr const char* STORAGE_KEY = "ai_gemini_api_key";
 };
 
 #endif

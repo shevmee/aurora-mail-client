@@ -1,26 +1,25 @@
 #ifndef AURORA_MAIL_CACHE_IMESSAGE_CACHE_HPP
 #define AURORA_MAIL_CACHE_IMESSAGE_CACHE_HPP
 
-#include "CachedMessage.hpp"
-#include "MessageKey.hpp"
-
 #include <QString>
-
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
 
+#include "CachedMessage.hpp"
+#include "MessageKey.hpp"
+
 namespace aurora::mail::app::cache
 {
 
-/**
- * Read-only counters describing recent cache activity.
- * Returned by IMessageCache::stats(). Cheap to read; values are atomically loaded.
- */
-struct CacheStats
-{
+  /**
+   * Read-only counters describing recent cache activity.
+   * Returned by IMessageCache::stats(). Cheap to read; values are atomically loaded.
+   */
+  struct CacheStats
+  {
     std::uint64_t hitsMemory = 0;       ///< tryGet served from in-memory tier
     std::uint64_t hitsPersistent = 0;   ///< tryGet served from on-disk tier (and promoted)
     std::uint64_t misses = 0;           ///< tryGet returned nullptr
@@ -29,21 +28,21 @@ struct CacheStats
     std::uint64_t invalidations = 0;    ///< entries dropped via invalidate*()
     std::uint64_t bytesResident = 0;    ///< approximate bytes currently in the in-memory tier
     std::uint64_t entriesResident = 0;  ///< number of entries currently in the in-memory tier
-};
+  };
 
-/**
- * Cache facade for parsed message bodies.
- *
- * Threading contract: every public method is thread-safe. Concrete implementations
- * are expected to be invoked from both the Qt UI thread and io_context coroutine
- * continuations; callers must NOT assume single-threaded access.
- *
- * Returned values are std::shared_ptr<const CachedMessage> so reads do not deep-copy
- * potentially large attachment payloads under any internal lock.
- */
-class IMessageCache
-{
-public:
+  /**
+   * Cache facade for parsed message bodies.
+   *
+   * Threading contract: every public method is thread-safe. Concrete implementations
+   * are expected to be invoked from both the Qt UI thread and io_context coroutine
+   * continuations; callers must NOT assume single-threaded access.
+   *
+   * Returned values are std::shared_ptr<const CachedMessage> so reads do not deep-copy
+   * potentially large attachment payloads under any internal lock.
+   */
+  class IMessageCache
+  {
+   public:
     virtual ~IMessageCache() = default;
 
     /**
@@ -97,8 +96,10 @@ public:
      * Best-effort flush of any pending writes to the persistent tier (if any).
      * Memory-only implementations may no-op. Safe to call on shutdown.
      */
-    virtual void flush() {}
-};
+    virtual void flush()
+    {
+    }
+  };
 
 }  // namespace aurora::mail::app::cache
 

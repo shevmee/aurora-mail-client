@@ -1,9 +1,8 @@
 #ifndef IMAP_SESSION_TYPES_HPP
 #define IMAP_SESSION_TYPES_HPP
 
-#include <cstdint>
-
 #include <QString>
+#include <cstdint>
 
 /**
  * High-level IMAP session phase for diagnostics and UI (single-writer in ImapSessionController).
@@ -11,11 +10,11 @@
  */
 enum class ImapConnectionPhase : std::uint8_t
 {
-    Disconnected = 0,
-    Ready,
-    ServerIdling,
-    WaitingIdleExit,
-    ExecutingCommand
+  Disconnected = 0,
+  Ready,
+  ServerIdling,
+  WaitingIdleExit,
+  ExecutingCommand
 };
 
 /**
@@ -24,28 +23,28 @@ enum class ImapConnectionPhase : std::uint8_t
  */
 enum class ImapSessionLinkState : std::uint8_t
 {
-    Disconnected = 0,
-    Connecting,
-    Authenticated
+  Disconnected = 0,
+  Connecting,
+  Authenticated
 };
 
 enum class ImapOpType
 {
-    SelectMailbox,
-    LoadEmail,
-    FetchMailboxPage,
-    MarkRead,
-    Delete,
-    Move,
-    ToggleFlag
+  SelectMailbox,
+  LoadEmail,
+  FetchMailboxPage,
+  MarkRead,
+  Delete,
+  Move,
+  ToggleFlag
 };
 
 struct ImapOperation
 {
-    ImapOpType type{};
-    QString param1;
-    QString param2;
-    bool boolParam = true;
+  ImapOpType type{};
+  QString param1;
+  QString param2;
+  bool boolParam = true;
 };
 
 #endif

@@ -30,9 +30,7 @@ namespace aurora::mail::imap::command
   {
     auto isSpecialChar = [](unsigned char c) constexpr
     {
-      return c == ' ' || c == '"' || c == '\\' ||
-             c == '(' || c == ')' || c == '{' || c == '}' ||
-             c == '[' || c == ']' ||
+      return c == ' ' || c == '"' || c == '\\' || c == '(' || c == ')' || c == '{' || c == '}' || c == '[' || c == ']' ||
              c < 32 || c > 126;
     };
 
@@ -45,14 +43,15 @@ namespace aurora::mail::imap::command
       {
         needsQuoting = true;
       }
-      if (c == '"' || c == '\\') {
+      if (c == '"' || c == '\\')
+      {
         extra += 1;
       }
     }
 
     if (!needsQuoting)
     {
-      return std::string{mailbox};
+      return std::string{ mailbox };
     }
 
     std::string quoted;
@@ -212,8 +211,8 @@ namespace aurora::mail::imap::command
       if (access_token.empty())
       {
         return std::unexpected(
-            ProtocolError::auth("AUTHENTICATE XOAUTH2: access token is empty",
-                                "Acquire a valid token before constructing AuthXOAuth2"));
+            ProtocolError::auth(
+                "AUTHENTICATE XOAUTH2: access token is empty", "Acquire a valid token before constructing AuthXOAuth2"));
       }
       std::string sasl;
       sasl.reserve(20 + username.size() + access_token.size());

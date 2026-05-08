@@ -6,46 +6,42 @@ MailSessionService::MailSessionService(
     ImapSessionCallbacks callbacks,
     DispatchFn dispatch)
     : strand_(std::make_shared<Strand>(ioc.get_executor())),
-      controller_(std::make_unique<ImapSessionController>(
-          ioc,
-          strand_,
-          std::move(imapClient),
-          std::move(callbacks)))
+      controller_(std::make_unique<ImapSessionController>(ioc, strand_, std::move(imapClient), std::move(callbacks)))
 {
-    controller_->setDispatch(std::move(dispatch));
+  controller_->setDispatch(std::move(dispatch));
 }
 
 void MailSessionService::enqueueOperation(ImapOperation op)
 {
-    controller_->enqueueOperation(std::move(op));
+  controller_->enqueueOperation(std::move(op));
 }
 
 void MailSessionService::startPolling()
 {
-    controller_->startPolling();
+  controller_->startPolling();
 }
 
 void MailSessionService::requestStopIdleLoop()
 {
-    controller_->requestStopIdleLoop();
+  controller_->requestStopIdleLoop();
 }
 
 void MailSessionService::resumeIdle()
 {
-    controller_->resumeIdle();
+  controller_->resumeIdle();
 }
 
 bool MailSessionService::idleLoopRunning() const
 {
-    return controller_->idleLoopRunning();
+  return controller_->idleLoopRunning();
 }
 
 bool MailSessionService::imapBusy() const
 {
-    return controller_->imapBusy();
+  return controller_->imapBusy();
 }
 
 ImapConnectionPhase MailSessionService::connectionPhase() const
 {
-    return controller_->connectionPhase();
+  return controller_->connectionPhase();
 }

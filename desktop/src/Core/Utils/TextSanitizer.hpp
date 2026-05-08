@@ -3,24 +3,26 @@
 
 #include <QString>
 
-namespace aurora::mail::app::utils {
+namespace aurora::mail::app::utils
+{
 
-/**
- * @class TextSanitizer
- * @brief Utilities for sanitizing text content for safe display in Qt.
- *
- * This class addresses real production issues encountered on macOS:
- * - CoreText crashes in CTFontDrawGlyphs/CopyEmojiImage when rendering emoji
- * - Qt's CSS parser errors on non-standard hex color formats (#RGBA, #RRGGBBAA)
- * - Malformed Unicode sequences that cause rendering artifacts
- *
- * Design principles:
- * - Do not round-trip real MIME HTML through QTextDocument::toHtml() (layout loss)
- * - Fix Qt-incompatible CSS colors in raw HTML strings
- * - Use Unicode categories (whitelist) for plain-text sanitization
- */
-class TextSanitizer {
-public:
+  /**
+   * @class TextSanitizer
+   * @brief Utilities for sanitizing text content for safe display in Qt.
+   *
+   * This class addresses real production issues encountered on macOS:
+   * - CoreText crashes in CTFontDrawGlyphs/CopyEmojiImage when rendering emoji
+   * - Qt's CSS parser errors on non-standard hex color formats (#RGBA, #RRGGBBAA)
+   * - Malformed Unicode sequences that cause rendering artifacts
+   *
+   * Design principles:
+   * - Do not round-trip real MIME HTML through QTextDocument::toHtml() (layout loss)
+   * - Fix Qt-incompatible CSS colors in raw HTML strings
+   * - Use Unicode categories (whitelist) for plain-text sanitization
+   */
+  class TextSanitizer
+  {
+   public:
     /**
      * @brief Prepares email HTML for QTextBrowser without destroying layout.
      *
@@ -60,8 +62,8 @@ public:
      */
     [[nodiscard]] static QString sanitizePlainText(const QString& input);
 
-private:
-    TextSanitizer() = delete; // Static utility class - prevent instantiation
+   private:
+    TextSanitizer() = delete;  // Static utility class - prevent instantiation
 
     /**
      * @brief Fixes invalid CSS color formats in HTML.
@@ -83,9 +85,8 @@ private:
      * @param html HTML content (modified in-place for performance).
      */
     static void fixInvalidCssColors(QString& html);
-};
+  };
 
-} // namespace aurora::mail::app::utils
+}  // namespace aurora::mail::app::utils
 
-#endif // CORE_UTILS_TEXT_SANITIZER_HPP
-
+#endif  // CORE_UTILS_TEXT_SANITIZER_HPP

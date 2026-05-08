@@ -10,22 +10,21 @@
  */
 class MailSessionSignals : public QObject
 {
-    Q_OBJECT
+  Q_OBJECT
 
-public:
-    explicit MailSessionSignals(QObject* parent = nullptr)
-        : QObject(parent)
-    {
-    }
+ public:
+  explicit MailSessionSignals(QObject* parent = nullptr) : QObject(parent)
+  {
+  }
 
-    void publishLinkState(ImapSessionLinkState state)
-    {
-        emit imapLinkStateChanged(state);
-    }
+  void publishLinkState(ImapSessionLinkState state)
+  {
+    emit imapLinkStateChanged(state);
+  }
 
-signals:
-    /** OAuth/IMAP/SMTP login flow: disconnected → connecting → authenticated (or back to disconnected). */
-    void imapLinkStateChanged(ImapSessionLinkState state);
+ signals:
+  /** OAuth/IMAP/SMTP login flow: disconnected → connecting → authenticated (or back to disconnected). */
+  void imapLinkStateChanged(ImapSessionLinkState state);
 };
 
 #endif

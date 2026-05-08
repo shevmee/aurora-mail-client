@@ -22,7 +22,8 @@ namespace aurora::mail::common
    * the existing Result<T> pipeline without exceptions.
    */
   [[nodiscard]] inline std::expected<void, ProtocolError> validateNoCrlf(
-      std::string_view value, std::string_view field_name) noexcept(false)
+      std::string_view value,
+      std::string_view field_name) noexcept(false)
   {
     for (std::size_t i = 0; i < value.size(); ++i)
     {
@@ -31,8 +32,7 @@ namespace aurora::mail::common
       {
         return std::unexpected(
             ProtocolError::protocol(
-                std::format(
-                    "Invalid character in command field '{}' at offset {}", field_name, i),
+                std::format("Invalid character in command field '{}' at offset {}", field_name, i),
                 "CR/LF/NUL bytes are forbidden in command parameters (CRLF injection guard)"));
       }
     }

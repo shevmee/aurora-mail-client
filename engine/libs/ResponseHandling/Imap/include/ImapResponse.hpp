@@ -41,7 +41,7 @@ namespace aurora::mail::imap::response
   /**
    * @brief Convert StatusType to string representation
    */
-  [[nodiscard]]constexpr std::string_view statusTypeToString(StatusType status) noexcept
+  [[nodiscard]] constexpr std::string_view statusTypeToString(StatusType status) noexcept
   {
     switch (status)
     {
@@ -60,9 +60,9 @@ namespace aurora::mail::imap::response
    */
   struct UntaggedResponse
   {
-    std::string_view line;                          ///< Full untagged response line
-    std::string_view command;                       ///< Command type (FETCH, EXISTS, etc.)
-    std::string_view data;                          ///< Response data/payload
+    std::string_view line;                     ///< Full untagged response line
+    std::string_view command;                  ///< Command type (FETCH, EXISTS, etc.)
+    std::string_view data;                     ///< Response data/payload
     std::vector<parser::Value> parsed_values;  ///< Tokenized/structured response data
 
     UntaggedResponse() = default;
@@ -79,11 +79,11 @@ namespace aurora::mail::imap::response
    */
   struct ImapResponse
   {
-    std::string_view tag;                         ///< Response tag (e.g., 'A001')
-    StatusType status{StatusType::Undefined};     ///< Status: OK, NO, BAD, BYE
-    std::string_view text;                        ///< Status text/message
-    std::vector<UntaggedResponse> untagged;  ///< Untagged responses containing data
-    std::string raw_response;                ///< Complete raw response from server
+    std::string_view tag;                        ///< Response tag (e.g., 'A001')
+    StatusType status{ StatusType::Undefined };  ///< Status: OK, NO, BAD, BYE
+    std::string_view text;                       ///< Status text/message
+    std::vector<UntaggedResponse> untagged;      ///< Untagged responses containing data
+    std::string raw_response;                    ///< Complete raw response from server
 
     [[nodiscard]] constexpr bool isSuccess() const noexcept
     {

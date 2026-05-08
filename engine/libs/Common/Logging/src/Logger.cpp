@@ -1,5 +1,4 @@
 #include <Logger.hpp>
-
 #include <chrono>
 #include <format>
 #include <iostream>
@@ -13,9 +12,8 @@ namespace aurora::mail::common::logger
   {
     if (config_.mode == LogMode::File)
     {
-      const int64_t timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                    std::chrono::system_clock::now().time_since_epoch())
-                                    .count();
+      const int64_t timestamp =
+          std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
       const std::string filePath = std::format(LOG_FILE_FORMAT, timestamp);
       ofs_.open(filePath, std::ios::app);
       if (!ofs_)
@@ -135,9 +133,8 @@ namespace aurora::mail::common::logger
 
     ofs_.close();
 
-    const int64_t timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                  std::chrono::system_clock::now().time_since_epoch())
-                                  .count();
+    const int64_t timestamp =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     const std::string newName = std::format(LOG_FILE_FORMAT, timestamp);
 
     ofs_.open(newName, std::ios::app);

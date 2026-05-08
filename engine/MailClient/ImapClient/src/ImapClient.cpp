@@ -1,4 +1,5 @@
 #include "ImapClient.hpp"
+
 #include <Base64.hpp>
 #include <ImapTokenizer.hpp>
 #include <ImapUtf7.hpp>
@@ -177,8 +178,7 @@ namespace aurora::mail::imap
     }
     std::string serialized = std::move(serialized_result).value();
     co_return co_await BaseProtocolClient::sendCommandAndReadResponse(
-        serialized,
-        [serialized](const std::string& line) { return isResponseFinalForSerializedCommand(serialized, line); });
+        serialized, [serialized](const std::string& line) { return isResponseFinalForSerializedCommand(serialized, line); });
   }
 
   Result<response::ImapResponse> ImapClient::parseAndValidate(const std::string& raw_response, StatusType expected_status)
@@ -400,8 +400,8 @@ namespace aurora::mail::imap
         co_return VoidResult{};
       }
 
-      co_return std::unexpected(ProtocolError::protocol(
-          std::format("Unexpected IMAP response after XOAUTH2 credential: {}", line)));
+      co_return std::unexpected(
+          ProtocolError::protocol(std::format("Unexpected IMAP response after XOAUTH2 credential: {}", line)));
     }
   }
 
@@ -797,7 +797,8 @@ namespace aurora::mail::imap
       co_return std::unexpected(send_result.error());
     }
 
-    // Server should respond with continuation "+ idling" or similar (allow extra untagged noise if stream was briefly misaligned).
+    // Server should respond with continuation "+ idling" or similar (allow extra untagged noise if stream was briefly
+    // misaligned).
     auto cont_result = co_await readResponse([](const std::string& line) { return line.starts_with("+"); }, 32);
 
     if (!cont_result.has_value())
@@ -852,12 +853,15 @@ namespace aurora::mail::imap
   void ImapClient::cancelIdleWait()
   {
     // Dispatch: see asyncIdleWait — never emit synchronously from arbitrary threads.
-    boost::asio::post(ioContext(), [this]() {
-      if (auto sig = idle_cancel_outstanding_)
-      {
-        sig->emit(boost::asio::cancellation_type::terminal);
-      }
-    });
+    boost::asio::post(
+        ioContext(),
+        [this]()
+        {
+          if (auto sig = idle_cancel_outstanding_)
+          {
+            sig->emit(boost::asio::cancellation_type::terminal);
+          }
+        });
   }
 
   awaitable<Result<std::string>> ImapClient::asyncIdleWait(int timeout_seconds)
@@ -884,15 +888,14 @@ namespace aurora::mail::imap
 
       try
       {
-        co_await timer.async_wait(
-            boost::asio::bind_cancellation_slot(cancel_sig->slot(), boost::asio::use_awaitable));
+        co_await timer.async_wait(boost::asio::bind_cancellation_slot(cancel_sig->slot(), boost::asio::use_awaitable));
         co_return std::string{};  // Normal timeout
       }
       catch (const boost::system::system_error& e)
       {
         if (e.code() == boost::asio::error::operation_aborted)
         {
-          co_return std::string{"__CANCELLED__"};
+          co_return std::string{ "__CANCELLED__" };
         }
         throw;
       }

@@ -1,19 +1,20 @@
 #include "AIAssistantDialog.hpp"
-#include <QHBoxLayout>
-#include <QGroupBox>
+
 #include <QApplication>
+#include <QGroupBox>
+#include <QHBoxLayout>
 #include <QSizePolicy>
 
-namespace aurora::mail::ui {
-
-AIAssistantDialog::AIAssistantDialog(QWidget* parent)
-    : QDialog(parent)
+namespace aurora::mail::ui
 {
+
+  AIAssistantDialog::AIAssistantDialog(QWidget* parent) : QDialog(parent)
+  {
     setupUi();
-}
+  }
 
-void AIAssistantDialog::setupUi()
-{
+  void AIAssistantDialog::setupUi()
+  {
     setWindowTitle(tr("AI Writing Assistant"));
     setMinimumSize(800, 500);
     resize(900, 600);
@@ -151,15 +152,20 @@ void AIAssistantDialog::setupUi()
             background-color: #cccccc;
         }
     )");
-    connect(m_generateButton, &QPushButton::clicked, this, [this]() {
-        // Switch to loading state immediately so the user gets visual
-        // feedback and cannot trigger multiple concurrent AI requests by
-        // clicking again. Only after this explicit click do we emit the
-        // mode signal that fires off the network request.
-        showLoading();
-        const Mode mode = static_cast<Mode>(m_modeCombo->currentData().toInt());
-        emit modeChanged(mode);
-    });
+    connect(
+        m_generateButton,
+        &QPushButton::clicked,
+        this,
+        [this]()
+        {
+          // Switch to loading state immediately so the user gets visual
+          // feedback and cannot trigger multiple concurrent AI requests by
+          // clicking again. Only after this explicit click do we emit the
+          // mode signal that fires off the network request.
+          showLoading();
+          const Mode mode = static_cast<Mode>(m_modeCombo->currentData().toInt());
+          emit modeChanged(mode);
+        });
     buttonLayout->addWidget(m_generateButton);
 
     m_applyButton = new QPushButton(tr("Apply Changes"), this);
@@ -180,39 +186,45 @@ void AIAssistantDialog::setupUi()
         }
     )");
     m_applyButton->setEnabled(false);
-    connect(m_applyButton, &QPushButton::clicked, this, [this]() {
-        m_accepted = true;
-        accept();
-    });
+    connect(
+        m_applyButton,
+        &QPushButton::clicked,
+        this,
+        [this]()
+        {
+          m_accepted = true;
+          accept();
+        });
     buttonLayout->addWidget(m_applyButton);
 
     mainLayout->addLayout(buttonLayout);
 
     // Start in idle state: user must select an action and click Generate.
     showIdle();
-}
+  }
 
-void AIAssistantDialog::setOriginalText(const QString& text)
-{
+  void AIAssistantDialog::setOriginalText(const QString& text)
+  {
     m_originalText->setPlainText(text);
-}
+  }
 
-void AIAssistantDialog::setImprovedText(const QString& text)
-{
+  void AIAssistantDialog::setImprovedText(const QString& text)
+  {
     m_improvedText->setPlainText(text);
     highlightDifferences();
-}
+  }
 
-QString AIAssistantDialog::getResultText() const
-{
-    if (m_accepted) {
-        return m_improvedText->toPlainText();
+  QString AIAssistantDialog::getResultText() const
+  {
+    if (m_accepted)
+    {
+      return m_improvedText->toPlainText();
     }
     return m_originalText->toPlainText();
-}
+  }
 
-void AIAssistantDialog::showIdle()
-{
+  void AIAssistantDialog::showIdle()
+  {
     m_loadingWidget->show();
     m_comparisonWidget->hide();
     m_progressBar->hide();
@@ -222,10 +234,10 @@ void AIAssistantDialog::showIdle()
     m_generateButton->setEnabled(true);
     m_generateButton->setText(tr("Generate"));
     m_generateButton->show();
-}
+  }
 
-void AIAssistantDialog::showLoading()
-{
+  void AIAssistantDialog::showLoading()
+  {
     m_loadingWidget->show();
     m_comparisonWidget->hide();
     m_applyButton->setEnabled(false);
@@ -236,10 +248,10 @@ void AIAssistantDialog::showLoading()
     m_statusLabel->setText(tr("Analyzing your text..."));
     m_statusLabel->setStyleSheet("font-size: 14px; color: #666;");
     m_progressBar->show();
-}
+  }
 
-void AIAssistantDialog::showError(const QString& message)
-{
+  void AIAssistantDialog::showError(const QString& message)
+  {
     m_loadingWidget->show();
     m_comparisonWidget->hide();
     m_progressBar->hide();
@@ -249,52 +261,50 @@ void AIAssistantDialog::showError(const QString& message)
     m_generateButton->setEnabled(true);
     m_generateButton->setText(tr("Try Again"));
     m_generateButton->show();
-}
+  }
 
-void AIAssistantDialog::showComparison()
-{
+  void AIAssistantDialog::showComparison()
+  {
     m_loadingWidget->hide();
     m_comparisonWidget->show();
     m_applyButton->setEnabled(true);
     m_generateButton->setEnabled(true);
     m_generateButton->setText(tr("Try Again"));
     m_generateButton->show();
-}
+  }
 
-void AIAssistantDialog::highlightDifferences()
-{
+  void AIAssistantDialog::highlightDifferences()
+  {
     // Simple highlighting - could be enhanced with a proper diff algorithm
     QString original = m_originalText->toPlainText();
     QString improved = m_improvedText->toPlainText();
-    
-    if (original == improved) {
-        m_statusLabel->setText(tr("No changes needed - your text is already great!"));
-        m_statusLabel->setStyleSheet("font-size: 14px; color: #4CAF50;");
-        m_loadingWidget->show();
-        m_progressBar->hide();
-        m_comparisonWidget->hide();
-        m_applyButton->setEnabled(false);
-        return;
+
+    if (original == improved)
+    {
+      m_statusLabel->setText(tr("No changes needed - your text is already great!"));
+      m_statusLabel->setStyleSheet("font-size: 14px; color: #4CAF50;");
+      m_loadingWidget->show();
+      m_progressBar->hide();
+      m_comparisonWidget->hide();
+      m_applyButton->setEnabled(false);
+      return;
     }
-    
+
     // For now, just show the texts as-is
     // A more sophisticated implementation would use a diff algorithm
     // to highlight specific changes
-}
+  }
 
-QString AIAssistantDialog::getModeDescription(Mode mode) const
-{
-    switch (mode) {
-        case Mode::GrammarCheck:
-            return "Checking grammar and spelling...";
-        case Mode::ImproveWriting:
-            return "Improving clarity and style...";
-        case Mode::MakeFormal:
-            return "Making text more professional...";
-        case Mode::MakeConcise:
-            return "Making text more concise...";
+  QString AIAssistantDialog::getModeDescription(Mode mode) const
+  {
+    switch (mode)
+    {
+      case Mode::GrammarCheck: return "Checking grammar and spelling...";
+      case Mode::ImproveWriting: return "Improving clarity and style...";
+      case Mode::MakeFormal: return "Making text more professional...";
+      case Mode::MakeConcise: return "Making text more concise...";
     }
     return "Processing...";
-}
+  }
 
-} // namespace aurora::mail::ui
+}  // namespace aurora::mail::ui

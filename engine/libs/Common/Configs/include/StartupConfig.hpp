@@ -35,11 +35,11 @@ namespace aurora::mail::common::config
    */
   struct LoggerConfig
   {
-    LogLevel level;             ///< Log level (deserialized from JSON string)
-    LogMode mode;               ///< Log output mode (deserialized from JSON string)
-    size_t queueSize;           ///< Log message queue size
-    size_t rotateSizeBytes;     ///< Log file rotation size in bytes
-    size_t flushIntervalMsgs;   ///< Flush every N messages (0 = flush every message, default: 16)
+    LogLevel level;            ///< Log level (deserialized from JSON string)
+    LogMode mode;              ///< Log output mode (deserialized from JSON string)
+    size_t queueSize;          ///< Log message queue size
+    size_t rotateSizeBytes;    ///< Log file rotation size in bytes
+    size_t flushIntervalMsgs;  ///< Flush every N messages (0 = flush every message, default: 16)
   };
 
   /**

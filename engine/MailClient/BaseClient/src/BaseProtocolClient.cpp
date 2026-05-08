@@ -1,13 +1,12 @@
 #include <BaseProtocolClient.hpp>
 #include <LoggerInstance.hpp>
-#include <expected>
-#include <format>
-
-#include "ProtocolError.hpp"
-
 #include <algorithm>
 #include <cctype>
+#include <expected>
+#include <format>
 #include <string_view>
+
+#include "ProtocolError.hpp"
 
 namespace aurora::mail::common
 {
@@ -17,12 +16,12 @@ namespace aurora::mail::common
 
     bool looksLikeBase64CredentialLine(std::string_view line)
     {
-      if (line.size() < 48 || line.size() > 65536) {
+      if (line.size() < 48 || line.size() > 65536)
+      {
         return false;
       }
-      return std::all_of(line.begin(), line.end(), [](unsigned char c) {
-        return std::isalnum(c) || c == '+' || c == '/' || c == '=';
-      });
+      return std::all_of(
+          line.begin(), line.end(), [](unsigned char c) { return std::isalnum(c) || c == '+' || c == '/' || c == '='; });
     }
 
     /** Never log OAuth tokens, SASL payloads, plaintext IMAP LOGIN passwords,
@@ -31,22 +30,23 @@ namespace aurora::mail::common
     {
       // Trim any trailing CR/LF for matching, but preserve original length for logs.
       std::string_view sv(line);
-      while (!sv.empty() && (sv.back() == '\r' || sv.back() == '\n')) {
+      while (!sv.empty() && (sv.back() == '\r' || sv.back() == '\n'))
+      {
         sv.remove_suffix(1);
       }
 
       // SMTP: "AUTH XOAUTH2 <token>" — covered explicitly to avoid leaking the token
       // even on shorter lines that wouldn't trip the base64 heuristic.
       constexpr std::string_view smtpXoauth = "AUTH XOAUTH2 ";
-      if (sv.size() > smtpXoauth.size() &&
-          sv.compare(0, smtpXoauth.size(), smtpXoauth) == 0) {
+      if (sv.size() > smtpXoauth.size() && sv.compare(0, smtpXoauth.size(), smtpXoauth) == 0)
+      {
         return std::string(smtpXoauth) + "<redacted>";
       }
 
       // SMTP: "AUTH PLAIN <base64(\\0user\\0password)>" — single-shot SASL PLAIN.
       constexpr std::string_view smtpAuthPlain = "AUTH PLAIN ";
-      if (sv.size() > smtpAuthPlain.size() &&
-          sv.compare(0, smtpAuthPlain.size(), smtpAuthPlain) == 0) {
+      if (sv.size() > smtpAuthPlain.size() && sv.compare(0, smtpAuthPlain.size(), smtpAuthPlain) == 0)
+      {
         return std::string(smtpAuthPlain) + "<redacted>";
       }
 
@@ -54,25 +54,26 @@ namespace aurora::mail::common
       // IMAP: "<TAG> AUTHENTICATE XOAUTH2 <base64>" — single-shot XOAUTH2.
       // IMAP: "<TAG> LOGIN \"user\" \"password\"" — cleartext LOGIN.
       // We locate the verb after the tag (first whitespace) and redact accordingly.
-      if (const auto firstSpace = sv.find(' ');
-          firstSpace != std::string_view::npos && firstSpace > 0) {
+      if (const auto firstSpace = sv.find(' '); firstSpace != std::string_view::npos && firstSpace > 0)
+      {
         const std::string_view rest = sv.substr(firstSpace + 1);
         constexpr std::string_view imapAuthPrefix = "AUTHENTICATE ";
         constexpr std::string_view imapLoginPrefix = "LOGIN";
-        if (rest.size() > imapAuthPrefix.size() &&
-            rest.compare(0, imapAuthPrefix.size(), imapAuthPrefix) == 0) {
+        if (rest.size() > imapAuthPrefix.size() && rest.compare(0, imapAuthPrefix.size(), imapAuthPrefix) == 0)
+        {
           // Preserve "<TAG> AUTHENTICATE <MECHANISM>" so debug logs still show
           // which mechanism was attempted; redact any payload after it.
           const auto mechStart = firstSpace + 1 + imapAuthPrefix.size();
           const auto mechEnd = sv.find(' ', mechStart);
-          if (mechEnd == std::string_view::npos) {
+          if (mechEnd == std::string_view::npos)
+          {
             return std::string(sv);  // No payload on the line.
           }
           return std::string(sv.substr(0, mechEnd)) + " <redacted>";
         }
-        if (rest.size() >= imapLoginPrefix.size() &&
-            rest.compare(0, imapLoginPrefix.size(), imapLoginPrefix) == 0 &&
-            (rest.size() == imapLoginPrefix.size() || rest[imapLoginPrefix.size()] == ' ')) {
+        if (rest.size() >= imapLoginPrefix.size() && rest.compare(0, imapLoginPrefix.size(), imapLoginPrefix) == 0 &&
+            (rest.size() == imapLoginPrefix.size() || rest[imapLoginPrefix.size()] == ' '))
+        {
           // "<TAG> LOGIN ..." — redact everything after the verb to avoid logging
           // the password (and to avoid logging the username, which is also PII).
           return std::string(sv.substr(0, firstSpace + 1)) + "LOGIN <redacted>";
@@ -81,7 +82,8 @@ namespace aurora::mail::common
 
       // Catch-all for unsolicited base64 continuations (e.g., the username and
       // password lines that follow a server "334" challenge in SMTP AUTH LOGIN).
-      if (looksLikeBase64CredentialLine(sv)) {
+      if (looksLikeBase64CredentialLine(sv))
+      {
         return "<base64 credential line redacted>";
       }
       return std::string(sv);
@@ -108,21 +110,22 @@ namespace aurora::mail::common
     std::string redactServerLineForLog(std::string_view line)
     {
       std::string_view sv = line;
-      while (!sv.empty() && (sv.back() == '\r' || sv.back() == '\n')) {
+      while (!sv.empty() && (sv.back() == '\r' || sv.back() == '\n'))
+      {
         sv.remove_suffix(1);
       }
 
       // IMAP continuation: "+ <payload>" or just "+".
-      if (sv.size() >= 1 && sv.front() == '+' &&
-          (sv.size() == 1 || sv[1] == ' ')) {
+      if (sv.size() >= 1 && sv.front() == '+' && (sv.size() == 1 || sv[1] == ' '))
+      {
         return "+ <redacted continuation>";
       }
 
       // SMTP continuation: "334 <base64-prompt>" (and "334-" for multi-line).
       // The base64 is a fixed prompt for AUTH LOGIN but variable for XOAUTH2,
       // and for some deployments may carry identifiers. Always redact.
-      if (sv.size() >= 4 &&
-          (sv.compare(0, 4, "334 ") == 0 || sv.compare(0, 4, "334-") == 0)) {
+      if (sv.size() >= 4 && (sv.compare(0, 4, "334 ") == 0 || sv.compare(0, 4, "334-") == 0))
+      {
         return std::string(sv.substr(0, 4)) + "<redacted continuation>";
       }
 
@@ -131,12 +134,10 @@ namespace aurora::mail::common
       // email address are virtually always credential-related and worth
       // sanitizing. Keep the SMTP reply code (first 3 digits + separator) so
       // operators still see whether we got 535 vs 454 vs 503, etc.
-      if (sv.size() >= 4 &&
-          std::isdigit(static_cast<unsigned char>(sv[0])) != 0 &&
-          std::isdigit(static_cast<unsigned char>(sv[1])) != 0 &&
-          std::isdigit(static_cast<unsigned char>(sv[2])) != 0 &&
-          (sv[3] == ' ' || sv[3] == '-') &&
-          sv.find('@') != std::string_view::npos) {
+      if (sv.size() >= 4 && std::isdigit(static_cast<unsigned char>(sv[0])) != 0 &&
+          std::isdigit(static_cast<unsigned char>(sv[1])) != 0 && std::isdigit(static_cast<unsigned char>(sv[2])) != 0 &&
+          (sv[3] == ' ' || sv[3] == '-') && sv.find('@') != std::string_view::npos)
+      {
         return std::string(sv.substr(0, 4)) + "<redacted: contains addr-like token>";
       }
 
@@ -144,23 +145,19 @@ namespace aurora::mail::common
       // error text, e.g. "A001 NO [AUTHENTICATIONFAILED] ... user@example.com".
       // Same heuristic: if the line carries an "@" we strip everything past
       // the IMAP status word to keep tag + status visible.
-      if (const auto firstSpace = sv.find(' ');
-          firstSpace != std::string_view::npos && firstSpace > 0) {
+      if (const auto firstSpace = sv.find(' '); firstSpace != std::string_view::npos && firstSpace > 0)
+      {
         const std::string_view tag = sv.substr(0, firstSpace);
         const std::string_view rest = sv.substr(firstSpace + 1);
         // Heuristic: tag is alphanumeric and short (<= 16 chars) for IMAP.
         const bool looksLikeImapTag = tag.size() <= 16 && !tag.empty() &&
-            std::all_of(tag.begin(), tag.end(), [](unsigned char c) {
-              return std::isalnum(c);
-            });
+                                      std::all_of(tag.begin(), tag.end(), [](unsigned char c) { return std::isalnum(c); });
         if (looksLikeImapTag && rest.find('@') != std::string_view::npos &&
-            (rest.starts_with("NO ") || rest.starts_with("BAD ") ||
-             rest.starts_with("NO[") || rest.starts_with("BAD["))) {
+            (rest.starts_with("NO ") || rest.starts_with("BAD ") || rest.starts_with("NO[") || rest.starts_with("BAD[")))
+        {
           const auto statusEnd = rest.find(' ');
-          const std::string_view statusWord =
-              statusEnd == std::string_view::npos ? rest : rest.substr(0, statusEnd);
-          return std::string(tag) + " " + std::string(statusWord) +
-                 " <redacted: contains addr-like token>";
+          const std::string_view statusWord = statusEnd == std::string_view::npos ? rest : rest.substr(0, statusEnd);
+          return std::string(tag) + " " + std::string(statusWord) + " <redacted: contains addr-like token>";
         }
       }
 
@@ -169,13 +166,11 @@ namespace aurora::mail::common
 
     std::string truncateForServerLog(std::string_view raw)
     {
-      if (raw.size() <= kMaxServerLogChars) {
+      if (raw.size() <= kMaxServerLogChars)
+      {
         return std::string(raw);
       }
-      return std::format(
-          "{} ... [truncated, {} bytes total]",
-          std::string(raw.substr(0, 240)),
-          raw.size());
+      return std::format("{} ... [truncated, {} bytes total]", std::string(raw.substr(0, 240)), raw.size());
     }
 
     /** Apply server-side redaction line-by-line on a CRLF-joined buffer.
@@ -247,9 +242,7 @@ namespace aurora::mail::common
     // alone is not a useful memory guard because a single legitimate IMAP
     // literal may be hundreds of MB (large attachments) and a malicious one
     // could announce arbitrary sizes.
-    auto would_overflow = [&](std::size_t additional) {
-      return additional > max_total_bytes - complete_response.size();
-    };
+    auto would_overflow = [&](std::size_t additional) { return additional > max_total_bytes - complete_response.size(); };
 
     while (line_count < max_lines)
     {
@@ -274,8 +267,7 @@ namespace aurora::mail::common
       const std::size_t separator_bytes = complete_response.empty() ? 0 : 2;
       if (would_overflow(separator_bytes + line.size()))
       {
-        auto err = ProtocolError::protocol(
-            std::format("Response exceeded maximum {} bytes", max_total_bytes));
+        auto err = ProtocolError::protocol(std::format("Response exceeded maximum {} bytes", max_total_bytes));
         log_error(err.toString());
         co_return std::unexpected(err);
       }
@@ -293,9 +285,7 @@ namespace aurora::mail::common
         if (would_overflow(2 + *literal_size))
         {
           auto err = ProtocolError::protocol(
-              std::format(
-                  "Literal of {} bytes would exceed response size cap ({} bytes)",
-                  *literal_size, max_total_bytes));
+              std::format("Literal of {} bytes would exceed response size cap ({} bytes)", *literal_size, max_total_bytes));
           log_error(err.toString());
           co_return std::unexpected(err);
         }
@@ -316,7 +306,8 @@ namespace aurora::mail::common
           }
           else
           {
-            auto err = ProtocolError::io(std::format("Literal read failed (expected {} bytes)", *literal_size), ec.message());
+            auto err =
+                ProtocolError::io(std::format("Literal read failed (expected {} bytes)", *literal_size), ec.message());
             log_error(err.toString());
           }
           co_return std::unexpected(
@@ -412,15 +403,11 @@ namespace aurora::mail::common
     tcp::resolver resolver(io_context_);
     error_code resolve_ec;
     auto endpoints_result = co_await resolver.async_resolve(
-        hostname,
-        std::to_string(port),
-        asio::redirect_error(asio::use_awaitable, resolve_ec));
+        hostname, std::to_string(port), asio::redirect_error(asio::use_awaitable, resolve_ec));
 
     if (resolve_ec)
     {
-      auto err = ProtocolError::connection(
-          std::format("Failed to resolve {}:{}", hostname, port),
-          resolve_ec.message());
+      auto err = ProtocolError::connection(std::format("Failed to resolve {}:{}", hostname, port), resolve_ec.message());
       log_error(err.toString());
       co_return std::unexpected(err);
     }
@@ -467,12 +454,13 @@ namespace aurora::mail::common
         break;
       }
 
-      log_warn(std::format(
-          "{}: TCP connect to {}:{} failed: {}; trying next endpoint",
-          toString(mail_protocol_),
-          ep.endpoint().address().to_string(),
-          ep.endpoint().port(),
-          ec.message()));
+      log_warn(
+          std::format(
+              "{}: TCP connect to {}:{} failed: {}; trying next endpoint",
+              toString(mail_protocol_),
+              ep.endpoint().address().to_string(),
+              ep.endpoint().port(),
+              ec.message()));
 
       auto fresh_plain = std::make_unique<PlainStream>(io_context_.get_executor());
       stream_ = std::make_unique<TimedOutStream>(std::move(fresh_plain), connect_attempt_timeout);

@@ -5,6 +5,7 @@
 #include <LoggerInstance.hpp>
 #include <ProtocolError.hpp>
 #include <algorithm>
+#include <boost/asio/cancellation_signal.hpp>
 #include <format>
 #include <functional>
 #include <memory>
@@ -12,8 +13,6 @@
 #include <set>
 #include <string_view>
 #include <vector>
-
-#include <boost/asio/cancellation_signal.hpp>
 
 #include "ImapCommand.hpp"
 #include "ImapResponse.hpp"
@@ -134,8 +133,8 @@ namespace aurora::mail::imap
   };
 
   using namespace aurora::mail::common;
-  using boost::asio::awaitable;
   using aurora::mail::common::ConnectionMode;
+  using boost::asio::awaitable;
 
   /**
    * @brief Callback type for handling unsolicited server responses.
@@ -623,7 +622,6 @@ namespace aurora::mail::imap
      * @return VoidResult
      */
     awaitable<VoidResult> asyncExpunge();
-
 
     /**
      * @brief Registers a callback for unsolicited server responses.

@@ -45,9 +45,8 @@ namespace aurora::mail::common
     FunctionRef() noexcept = default;
 
     template<typename F>
-      requires (!std::same_as<std::remove_cvref_t<F>, FunctionRef>) &&
-               std::invocable<F&, Args...> &&
-               (std::same_as<R, void> || std::convertible_to<std::invoke_result_t<F&, Args...>, R>)
+      requires(!std::same_as<std::remove_cvref_t<F>, FunctionRef>) && std::invocable<F&, Args...> &&
+              (std::same_as<R, void> || std::convertible_to<std::invoke_result_t<F&, Args...>, R>)
     FunctionRef(F&& f) noexcept
     {
       using Decayed = std::remove_reference_t<F>;

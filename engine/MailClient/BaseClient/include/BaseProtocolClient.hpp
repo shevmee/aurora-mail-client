@@ -51,7 +51,7 @@ namespace aurora::mail::common
    */
   [[nodiscard]] constexpr std::string_view toString(MailProtocol p) noexcept
   {
-    return p == MailProtocol::SMTP ? std::string_view{"SMTP"} : std::string_view{"IMAP"};
+    return p == MailProtocol::SMTP ? std::string_view{ "SMTP" } : std::string_view{ "IMAP" };
   }
 
   /**
@@ -101,9 +101,9 @@ namespace aurora::mail::common
     // io_context/ssl_context, so moving would silently rebind those references and
     // give the misleading impression that the contexts travel with the object.
     BaseProtocolClient(const BaseProtocolClient&) = delete;
-    BaseProtocolClient& operator= (const BaseProtocolClient&) = delete;
+    BaseProtocolClient& operator=(const BaseProtocolClient&) = delete;
     BaseProtocolClient(BaseProtocolClient&&) = delete;
-    BaseProtocolClient& operator= (BaseProtocolClient&&) = delete;
+    BaseProtocolClient& operator=(BaseProtocolClient&&) = delete;
 
     /**
      * @brief Check if connection is currently active.
@@ -157,8 +157,8 @@ namespace aurora::mail::common
      */
     awaitable<Result<std::string>> readResponse(
         FunctionRef<bool(const std::string&)> is_final_line,
-        std::size_t max_lines = 1'000'000,                                 // 1M lines for large mailboxes
-        std::size_t max_total_bytes = std::size_t{256} * 1024 * 1024);     // 256 MiB hard cap
+        std::size_t max_lines = 1'000'000,                                // 1M lines for large mailboxes
+        std::size_t max_total_bytes = std::size_t{ 256 } * 1024 * 1024);  // 256 MiB hard cap
 
     /**
      * @brief Detect if a line indicates incoming literal data.

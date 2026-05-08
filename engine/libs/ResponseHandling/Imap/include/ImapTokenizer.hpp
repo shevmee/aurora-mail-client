@@ -14,10 +14,15 @@ namespace aurora::mail::imap::parser
   class Tokenizer
   {
    public:
-    explicit Tokenizer(std::string_view input): input_(input), pos_(0) {}
+    explicit Tokenizer(std::string_view input) : input_(input), pos_(0)
+    {
+    }
 
     std::expected<Value, std::string> nextValue();
-    size_t position() const { return pos_; }
+    size_t position() const
+    {
+      return pos_;
+    }
     void skipSpaces();
     /// Advance past any consecutive '\r' and '\n' bytes. Used by the response
     /// parser to step from one untagged line to the next; skipSpaces() is NOT
@@ -28,7 +33,7 @@ namespace aurora::mail::imap::parser
     std::string_view input_;
     size_t pos_;
 
-  private:
+   private:
     char peek() const;
     char get();
     bool isEof() const;

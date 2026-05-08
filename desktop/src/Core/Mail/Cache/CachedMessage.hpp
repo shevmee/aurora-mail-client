@@ -1,27 +1,26 @@
 #ifndef AURORA_MAIL_CACHE_CACHED_MESSAGE_HPP
 #define AURORA_MAIL_CACHE_CACHED_MESSAGE_HPP
 
-#include "Email/EmailParser.hpp"
-#include "MessageKey.hpp"
-
 #include <QByteArray>
 #include <QDateTime>
-
 #include <cstddef>
 #include <cstdint>
+
+#include "Email/EmailParser.hpp"
+#include "MessageKey.hpp"
 
 namespace aurora::mail::app::cache
 {
 
-/**
- * Envelope around a parsed message body that the cache stores and the UI consumes.
- *
- * The envelope captures everything required for byte-budgeted eviction, age-based
- * refresh, and CONDSTORE-style delta sync — none of which the raw
- * ParsedEmailContent provides.
- */
-struct CachedMessage
-{
+  /**
+   * Envelope around a parsed message body that the cache stores and the UI consumes.
+   *
+   * The envelope captures everything required for byte-budgeted eviction, age-based
+   * refresh, and CONDSTORE-style delta sync — none of which the raw
+   * ParsedEmailContent provides.
+   */
+  struct CachedMessage
+  {
     MessageKey key;
 
     /// Parsed and ready-to-render message content (subject/from/body/attachments).
@@ -42,18 +41,18 @@ struct CachedMessage
     /// Counts the UTF-8 length of QStrings and the byte length of attachment payloads.
     [[nodiscard]] static std::size_t approximateBytesOf(
         const aurora::mail::app::email::ParsedEmailContent& content) noexcept;
-};
+  };
 
-/**
- * Serialise a CachedMessage envelope into a single binary blob.
- *
- * Format is versioned (4-byte magic + 2-byte version + QDataStream payload) so that
- * the persistent tier can detect and reject blobs from incompatible versions.
- */
-[[nodiscard]] QByteArray encodeCachedMessage(const CachedMessage& entry);
+  /**
+   * Serialise a CachedMessage envelope into a single binary blob.
+   *
+   * Format is versioned (4-byte magic + 2-byte version + QDataStream payload) so that
+   * the persistent tier can detect and reject blobs from incompatible versions.
+   */
+  [[nodiscard]] QByteArray encodeCachedMessage(const CachedMessage& entry);
 
-/// Inverse of encodeCachedMessage. Returns std::nullopt on any framing/version error.
-[[nodiscard]] std::optional<CachedMessage> decodeCachedMessage(const QByteArray& blob);
+  /// Inverse of encodeCachedMessage. Returns std::nullopt on any framing/version error.
+  [[nodiscard]] std::optional<CachedMessage> decodeCachedMessage(const QByteArray& blob);
 
 }  // namespace aurora::mail::app::cache
 

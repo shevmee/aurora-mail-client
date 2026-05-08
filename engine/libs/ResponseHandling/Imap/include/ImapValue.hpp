@@ -11,8 +11,8 @@ namespace aurora::mail::imap::parser
 {
 
   /**
-  * @brief Represents an IMAP atom (unquoted string token)
-  */
+   * @brief Represents an IMAP atom (unquoted string token)
+   */
   struct Atom
   {
     std::string_view value;
@@ -20,8 +20,8 @@ namespace aurora::mail::imap::parser
   };
 
   /**
-  * @brief Represents an IMAP quoted string "..."
-  */
+   * @brief Represents an IMAP quoted string "..."
+   */
   struct Quoted
   {
     std::string value;
@@ -53,20 +53,23 @@ namespace aurora::mail::imap::parser
   struct List
   {
     std::vector<Value> items;
-    bool operator==(const List& other) const {
+    bool operator==(const List& other) const
+    {
       return items == other.items;
     }
   };
 
   inline std::optional<std::string_view> getAtomValue(const Value& v)
   {
-    if (auto* atom = std::get_if<Atom>(&v)) return atom->value;
+    if (auto* atom = std::get_if<Atom>(&v))
+      return atom->value;
     return std::nullopt;
   }
 
   inline std::optional<std::string_view> getQuotedValue(const Value& v)
   {
-    if (auto* quoted = std::get_if<Quoted>(&v)) return quoted->value;
+    if (auto* quoted = std::get_if<Quoted>(&v))
+      return quoted->value;
     return std::nullopt;
   }
 }  // namespace aurora::mail::imap::parser

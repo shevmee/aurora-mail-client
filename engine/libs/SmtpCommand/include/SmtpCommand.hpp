@@ -314,8 +314,8 @@ namespace aurora::mail::smtp::command
       if (access_token.empty())
       {
         return std::unexpected(
-            ProtocolError::auth("AUTH XOAUTH2: access token is empty",
-                                "Acquire a valid token before constructing AuthXOAuth2"));
+            ProtocolError::auth(
+                "AUTH XOAUTH2: access token is empty", "Acquire a valid token before constructing AuthXOAuth2"));
       }
       std::string sasl;
       sasl.reserve(20 + username.size() + access_token.size());

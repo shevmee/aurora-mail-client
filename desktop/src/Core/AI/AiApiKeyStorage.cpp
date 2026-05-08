@@ -7,15 +7,15 @@ AiApiKeyStorage::AiApiKeyStorage(const QString& organization, const QString& app
 
 QString AiApiKeyStorage::load() const
 {
-    return backend_.retrieve(QString::fromLatin1(STORAGE_KEY));
+  return backend_.retrieve(QString::fromLatin1(STORAGE_KEY));
 }
 
 void AiApiKeyStorage::save(const QString& apiKey)
 {
-    backend_.store(QString::fromLatin1(STORAGE_KEY), apiKey);
+  backend_.store(QString::fromLatin1(STORAGE_KEY), apiKey);
 }
 
 void AiApiKeyStorage::clear()
 {
-    backend_.remove(QString::fromLatin1(STORAGE_KEY));
+  backend_.remove(QString::fromLatin1(STORAGE_KEY));
 }

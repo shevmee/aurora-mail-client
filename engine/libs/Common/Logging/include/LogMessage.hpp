@@ -37,13 +37,13 @@ namespace aurora::mail::common::logger
 
     LogLevel level{};
     std::chrono::system_clock::time_point ts{};
-    int line{0};
+    int line{ 0 };
 
     std::array<char, max_text_size> text{};
     std::array<char, max_file_size> file{};
     std::array<char, max_func_size> func{};
 
-    template <std::size_t N>
+    template<std::size_t N>
     static void copyTruncated(std::array<char, N>& dst, std::string_view src) noexcept
     {
       static_assert(N > 0, "buffer size must be positive");
@@ -73,7 +73,9 @@ namespace aurora::mail::common::logger
         std::string_view src_file = {},
         int src_line = 0,
         std::string_view src_func = {}) noexcept
-        : level(lvl), ts(timestamp), line(src_line)
+        : level(lvl),
+          ts(timestamp),
+          line(src_line)
     {
       copyTruncated(text, msg_text);
       copyTruncated(file, src_file);
@@ -88,25 +90,26 @@ namespace aurora::mail::common::logger
         std::string_view msg_text,
         std::chrono::system_clock::time_point timestamp,
         const std::source_location& loc) noexcept
-        : level(lvl), ts(timestamp), line(static_cast<int>(loc.line()))
+        : level(lvl),
+          ts(timestamp),
+          line(static_cast<int>(loc.line()))
     {
       copyTruncated(text, msg_text);
-      copyTruncated(file, std::string_view{loc.file_name()});
-      copyTruncated(func, std::string_view{loc.function_name()});
+      copyTruncated(file, std::string_view{ loc.file_name() });
+      copyTruncated(func, std::string_view{ loc.function_name() });
     }
   };
 
   inline std::ostream& operator<<(std::ostream& os, const LogMessage& msg)
   {
     const auto tt = std::chrono::system_clock::to_time_t(msg.ts);
-    const auto ms =
-        std::chrono::duration_cast<std::chrono::milliseconds>(msg.ts.time_since_epoch()) % 1000;
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(msg.ts.time_since_epoch()) % 1000;
 
     std::tm local_tm{};
     localtime_r(&tt, &local_tm);
 
-    os << std::put_time(&local_tm, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3)
-       << ms.count() << " [" << to_display_string(msg.level) << "] ";
+    os << std::put_time(&local_tm, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << " ["
+       << to_display_string(msg.level) << "] ";
 
     if (msg.file[0] != '\0' && msg.line != 0 && msg.func[0] != '\0')
     {

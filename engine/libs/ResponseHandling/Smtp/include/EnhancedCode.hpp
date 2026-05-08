@@ -1,10 +1,10 @@
 #ifndef ENHANCED_CODE_HPP
 #define ENHANCED_CODE_HPP
 
+#include <cctype>
 #include <cstdint>
 #include <format>
 #include <optional>
-#include <cctype>
 #include <string>
 
 namespace aurora::mail::smtp::response
@@ -32,8 +32,8 @@ namespace aurora::mail::smtp::response
   };
 
   /**
-  * @brief Get human-readable description of subject code
-  */
+   * @brief Get human-readable description of subject code
+   */
   inline std::string getSubjectDescription(SubjectCode subject)
   {
     switch (subject)
@@ -65,9 +65,9 @@ namespace aurora::mail::smtp::response
    */
   struct EnhancedCode
   {
-    ClassCode class_code{ClassCode::Undefined};  ///< Success/failure class (2/4/5)
-    SubjectCode subject{SubjectCode::Undefined};   ///< Error category (0-7)
-    uint8_t detail{0};        ///< Specific error code
+    ClassCode class_code{ ClassCode::Undefined };   ///< Success/failure class (2/4/5)
+    SubjectCode subject{ SubjectCode::Undefined };  ///< Error category (0-7)
+    uint8_t detail{ 0 };                            ///< Specific error code
 
     /**
      * @brief Constructor with values
@@ -135,11 +135,9 @@ namespace aurora::mail::smtp::response
         return std::nullopt;
       }
 
-      return EnhancedCode{ 
-        static_cast<ClassCode>(class_code),
-        static_cast<SubjectCode>(subject_code),
-        static_cast<uint8_t>(detail) 
-      };
+      return EnhancedCode{ static_cast<ClassCode>(class_code),
+                           static_cast<SubjectCode>(subject_code),
+                           static_cast<uint8_t>(detail) };
     }
 
     /**

@@ -21,9 +21,7 @@ namespace
 
   inline int parseStatusCode(std::string_view line) noexcept
   {
-    return (line[0] - '0') * 100 +
-           (line[1] - '0') * 10 +
-           (line[2] - '0');
+    return (line[0] - '0') * 100 + (line[1] - '0') * 10 + (line[2] - '0');
   }
 
 }  // namespace
@@ -47,14 +45,12 @@ namespace aurora::mail::smtp::response
       line_num++;
 
       const std::size_t nl = input.find('\n');
-      std::string_view line =
-        (nl == std::string_view::npos) ? input : input.substr(0, nl);
+      std::string_view line = (nl == std::string_view::npos) ? input : input.substr(0, nl);
 
-      input = (nl == std::string_view::npos)
-        ? std::string_view{}
-        : input.substr(nl + 1);
+      input = (nl == std::string_view::npos) ? std::string_view{} : input.substr(nl + 1);
 
-      if (!line.empty() && line.back() == '\r') {
+      if (!line.empty() && line.back() == '\r')
+      {
         line.remove_suffix(1);
       }
 
@@ -80,9 +76,8 @@ namespace aurora::mail::smtp::response
       const char separator = line[3];
       if (separator != ' ' && separator != '-')
       {
-          return std::unexpected(std::format(
-              "SMTP response line {} has invalid separator after status code: \"{}\"",
-              line_num, line));
+        return std::unexpected(
+            std::format("SMTP response line {} has invalid separator after status code: \"{}\"", line_num, line));
       }
 
       // Parse status code
@@ -94,25 +89,19 @@ namespace aurora::mail::smtp::response
       }
 
       // Position 4+ is the text
-      std::string_view text = (line.size() > 4)
-      ? line.substr(4)
-      : std::string_view{};
+      std::string_view text = (line.size() > 4) ? line.substr(4) : std::string_view{};
 
       // On first line, check for enhanced status code
       if (first_line && !text.empty())
       {
         // Enhanced codes look like "2.1.5 " at the start
         const std::size_t space_pos = text.find(' ');
-        const std::string_view first_token =
-          (space_pos == std::string_view::npos)
-          ? text : text.substr(0, space_pos);
+        const std::string_view first_token = (space_pos == std::string_view::npos) ? text : text.substr(0, space_pos);
 
         if (auto enhanced = EnhancedCode::parse(first_token); enhanced.has_value())
         {
           resp.enhanced_code = enhanced;
-          text = (space_pos == std::string_view::npos)
-            ? std::string_view{}
-            : text.substr(space_pos + 1);
+          text = (space_pos == std::string_view::npos) ? std::string_view{} : text.substr(space_pos + 1);
         }
       }
 
@@ -132,9 +121,7 @@ namespace aurora::mail::smtp::response
 
     if (resp.code == 0)
     {
-      return std::unexpected(std::format(
-          "No valid SMTP status code found in response:\n{}",
-          raw_response));
+      return std::unexpected(std::format("No valid SMTP status code found in response:\n{}", raw_response));
     }
 
     return resp;

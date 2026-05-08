@@ -1,7 +1,5 @@
 #include "AiSettingsDialog.hpp"
 
-#include "AI/AIService.hpp"
-
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QDialogButtonBox>
@@ -13,15 +11,16 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
-using aurora::mail::app::ai::AIService;
+#include "AI/AIService.hpp"
+
 using aurora::mail::app::ai::AiProviderKind;
+using aurora::mail::app::ai::AIService;
 
-namespace aurora::mail::ui {
-
-AiSettingsDialog::AiSettingsDialog(AIService* aiService, QWidget* parent)
-    : QDialog(parent)
-    , m_ai(aiService)
+namespace aurora::mail::ui
 {
+
+  AiSettingsDialog::AiSettingsDialog(AIService* aiService, QWidget* parent) : QDialog(parent), m_ai(aiService)
+  {
     setWindowTitle(tr("AI settings"));
     setMinimumWidth(440);
 
@@ -58,11 +57,14 @@ AiSettingsDialog::AiSettingsDialog(AIService* aiService, QWidget* parent)
 
     auto* status = new QLabel(this);
     status->setObjectName(QStringLiteral("TextMuted"));
-    if (m_ai && m_ai->isConfigured()) {
-        status->setText(tr("Saved key: %1").arg(m_ai->getMaskedApiKey()));
-        keyEdit->setPlaceholderText(tr("Leave empty to keep existing key; paste to replace."));
-    } else {
-        status->setText(tr("No API key saved."));
+    if (m_ai && m_ai->isConfigured())
+    {
+      status->setText(tr("Saved key: %1").arg(m_ai->getMaskedApiKey()));
+      keyEdit->setPlaceholderText(tr("Leave empty to keep existing key; paste to replace."));
+    }
+    else
+    {
+      status->setText(tr("No API key saved."));
     }
     layout->addWidget(status);
 
@@ -74,43 +76,52 @@ AiSettingsDialog::AiSettingsDialog(AIService* aiService, QWidget* parent)
     buttons->addButton(clearBtn, QDialogButtonBox::DestructiveRole);
     layout->addWidget(buttons);
 
-    connect(saveBtn, &QPushButton::clicked, this, [this, keyEdit, status]() {
-        if (!m_ai) {
+    connect(
+        saveBtn,
+        &QPushButton::clicked,
+        this,
+        [this, keyEdit, status]()
+        {
+          if (!m_ai)
+          {
             return;
-        }
-        const QString trimmed = keyEdit->text().trimmed();
-        if (trimmed.isEmpty()) {
-            if (m_ai->isConfigured()) {
-                status->setText(tr("Existing key unchanged."));
-                accept();
-                return;
+          }
+          const QString trimmed = keyEdit->text().trimmed();
+          if (trimmed.isEmpty())
+          {
+            if (m_ai->isConfigured())
+            {
+              status->setText(tr("Existing key unchanged."));
+              accept();
+              return;
             }
             status->setText(tr("Enter an API key."));
             return;
-        }
-        m_ai->setApiKey(trimmed);
-        keyEdit->clear();
-        status->setText(tr("Saved: %1").arg(m_ai->getMaskedApiKey()));
-        accept();
-    });
+          }
+          m_ai->setApiKey(trimmed);
+          keyEdit->clear();
+          status->setText(tr("Saved: %1").arg(m_ai->getMaskedApiKey()));
+          accept();
+        });
 
     connect(clearBtn, &QPushButton::clicked, this, &AiSettingsDialog::onClearClicked);
     connect(linkBtn, &QPushButton::clicked, this, &AiSettingsDialog::openKeyHelpUrl);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-}
+  }
 
-void AiSettingsDialog::onClearClicked()
-{
-    if (!m_ai) {
-        return;
+  void AiSettingsDialog::onClearClicked()
+  {
+    if (!m_ai)
+    {
+      return;
     }
     m_ai->clearApiKey();
     accept();
-}
+  }
 
-void AiSettingsDialog::openKeyHelpUrl() const
-{
+  void AiSettingsDialog::openKeyHelpUrl() const
+  {
     QDesktopServices::openUrl(QUrl(QStringLiteral("https://aistudio.google.com/apikey")));
-}
+  }
 
-} // namespace aurora::mail::ui
+}  // namespace aurora::mail::ui

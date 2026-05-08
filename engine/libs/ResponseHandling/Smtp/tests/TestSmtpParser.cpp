@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include <string>
 
 #include "Parser.hpp"
@@ -43,8 +44,8 @@ TEST(SmtpParserTest, TrimTrailingWhitespace)
 
 TEST(SmtpParserTest, RtrimRemovesTrailingWhitespaceAndPreservesInnerAndLeadingCharacters)
 {
-  const auto str = std::string{"  abc \r\n\t "};
-  const auto expected = std::string{"  abc"};
+  const auto str = std::string{ "  abc \r\n\t " };
+  const auto expected = std::string{ "  abc" };
 
   std::size_t end = str.find_last_not_of("\r\n\t ");
   EXPECT_EQ((end == std::string::npos) ? "" : str.substr(0, end + 1), expected);

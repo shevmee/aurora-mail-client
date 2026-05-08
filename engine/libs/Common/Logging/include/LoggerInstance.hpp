@@ -53,30 +53,22 @@ namespace aurora::mail::common::logger
 
 #ifndef NDEBUG
 
-  inline void log_debug(
-      std::string_view msg,
-      const std::source_location& loc = std::source_location::current())
+  inline void log_debug(std::string_view msg, const std::source_location& loc = std::source_location::current())
   {
     LoggerInstance::instance().logger().log(LogLevel::Debug, msg, loc);
   }
 
-  inline void log_info(
-      std::string_view msg,
-      const std::source_location& loc = std::source_location::current())
+  inline void log_info(std::string_view msg, const std::source_location& loc = std::source_location::current())
   {
     LoggerInstance::instance().logger().log(LogLevel::Info, msg, loc);
   }
 
-  inline void log_warn(
-      std::string_view msg,
-      const std::source_location& loc = std::source_location::current())
+  inline void log_warn(std::string_view msg, const std::source_location& loc = std::source_location::current())
   {
     LoggerInstance::instance().logger().log(LogLevel::Warn, msg, loc);
   }
 
-  inline void log_error(
-      std::string_view msg,
-      const std::source_location& loc = std::source_location::current())
+  inline void log_error(std::string_view msg, const std::source_location& loc = std::source_location::current())
   {
     LoggerInstance::instance().logger().log(LogLevel::Error, msg, loc);
   }

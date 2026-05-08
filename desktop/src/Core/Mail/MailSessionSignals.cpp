@@ -6,11 +6,11 @@ Q_DECLARE_METATYPE(ImapSessionLinkState)
 
 namespace
 {
-struct RegisterMailSessionMetaTypes
-{
+  struct RegisterMailSessionMetaTypes
+  {
     RegisterMailSessionMetaTypes()
     {
-        qRegisterMetaType<ImapSessionLinkState>();
+      qRegisterMetaType<ImapSessionLinkState>();
     }
-} const registerMailSessionMetaTypes;
+  } const registerMailSessionMetaTypes;
 }  // namespace

@@ -271,8 +271,7 @@ namespace aurora::mail::smtp
     {
       co_return std::unexpected(
           ProtocolError::auth(
-              std::format("AUTH LOGIN: server did not request username (code {})", step1_parsed->code),
-              step1_parsed->text));
+              std::format("AUTH LOGIN: server did not request username (code {})", step1_parsed->code), step1_parsed->text));
     }
 
     // Step 2: respond with base64(username) and expect another 334 challenge.
@@ -292,8 +291,7 @@ namespace aurora::mail::smtp
     {
       co_return std::unexpected(
           ProtocolError::auth(
-              std::format("AUTH LOGIN: server did not accept username (code {})", step2_parsed->code),
-              step2_parsed->text));
+              std::format("AUTH LOGIN: server did not accept username (code {})", step2_parsed->code), step2_parsed->text));
     }
 
     // Step 3: respond with base64(password) and expect 235 success.
