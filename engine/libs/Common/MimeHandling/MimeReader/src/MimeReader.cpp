@@ -13,8 +13,8 @@
 // identical for ASCII input (which is all the MIME header parsing below
 // produces), so a translation macro keeps the call sites portable without
 // dragging in <strings.h> (POSIX-only).
-#  include <string.h>
-#  define strcasecmp _stricmp
+#include <string.h>
+#define strcasecmp _stricmp
 #endif
 
 namespace aurora::mail::common::mime

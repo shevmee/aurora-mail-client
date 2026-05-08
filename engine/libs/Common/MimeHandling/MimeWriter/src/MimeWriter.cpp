@@ -41,8 +41,8 @@ namespace aurora::mail::common::mime
       // filenames become a real requirement on Windows, switch to
       // path::u8string() and reinterpret_cast the resulting char8_t buffer.
       const std::string filename_utf8 = path.filename().string();
-      gchar* guessed_type = g_content_type_guess(
-          filename_utf8.c_str(), buffer.empty() ? nullptr : buffer.data(), buffer.size(), &uncertain);
+      gchar* guessed_type =
+          g_content_type_guess(filename_utf8.c_str(), buffer.empty() ? nullptr : buffer.data(), buffer.size(), &uncertain);
 
       if (guessed_type == nullptr)
       {
