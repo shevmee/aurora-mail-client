@@ -102,34 +102,45 @@ bool ensureConfigExists()
 }
 
 #ifdef Q_OS_WIN
-/**
- * @brief Top-level Windows SEH filter that diagnoses hard crashes (AV, etc.).
- *
- * The default behaviour for an unhandled structured exception in a
- * WIN32_EXECUTABLE app is "process disappears, $LASTEXITCODE = 0xC0000005,
- * no log, no message box". For a desktop user that is indistinguishable
- * from `exit(0)`. This filter:
- *   1. logs the exception code and the offending instruction address;
- *   2. resolves the address to a module + offset via PSAPI so we know
- *      whether it crashed in our code, in Qt, in OpenSSL, or in asio;
- *   3. writes a minidump to %TEMP%\aurora-mail-crash-<pid>.dmp that can
- *      be opened in WinDbg / Visual Studio for a full stack trace.
- *
- * We deliberately return EXCEPTION_EXECUTE_HANDLER after writing the dump
- * so the process exits cleanly instead of letting Windows pop the generic
- * "Aurora Mail has stopped working" dialog.
- */
-LONG WINAPI auroraCrashFilter(EXCEPTION_POINTERS* info)
+namespace {
+// Re-entrancy guard: if we crash *inside* the crash handler (e.g. heap is
+// corrupted and CreateFile / MiniDumpWriteDump trip another AV), we MUST NOT
+// recurse — that just deadlocks or pegs CPU. One process, one dump, one log.
+volatile LONG g_inCrashHandler = 0;
+
+bool isFatalSehCode(DWORD code)
 {
-    if (info == nullptr || info->ExceptionRecord == nullptr) {
-        return EXCEPTION_EXECUTE_HANDLER;
+    switch (code) {
+    case EXCEPTION_ACCESS_VIOLATION:
+    case EXCEPTION_STACK_OVERFLOW:
+    case EXCEPTION_ILLEGAL_INSTRUCTION:
+    case EXCEPTION_PRIV_INSTRUCTION:
+    case EXCEPTION_INT_DIVIDE_BY_ZERO:
+    case EXCEPTION_INT_OVERFLOW:
+    case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+    case EXCEPTION_DATATYPE_MISALIGNMENT:
+    case EXCEPTION_NONCONTINUABLE_EXCEPTION:
+    case EXCEPTION_IN_PAGE_ERROR:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void writeCrashReport(EXCEPTION_POINTERS* info, const char* origin)
+{
+    // First-shot safety: serialise multiple threads racing into the handler
+    // and bail out if we are already mid-report. We can't use std::mutex
+    // here — the heap might be the thing that's broken.
+    if (::InterlockedExchange(&g_inCrashHandler, 1) != 0) {
+        return;
     }
 
     const DWORD code = info->ExceptionRecord->ExceptionCode;
     void* const addr = info->ExceptionRecord->ExceptionAddress;
 
-    // Resolve the offending address to <module>+<offset> to give us a
-    // fighting chance of debugging without a debugger attached.
+    // Resolve <module>+<offset>. Use static buffers — no heap allocation in
+    // a possibly-corrupted heap.
     char moduleName[MAX_PATH] = "<unknown>";
     uintptr_t offset = 0;
     HMODULE hMod = nullptr;
@@ -142,14 +153,24 @@ LONG WINAPI auroraCrashFilter(EXCEPTION_POINTERS* info)
         offset = reinterpret_cast<uintptr_t>(addr) - reinterpret_cast<uintptr_t>(hMod);
     }
 
-    qCritical().nospace()
-        << "Aurora crashed: SEH code=0x" << QString::number(code, 16)
-        << " addr=0x" << QString::number(reinterpret_cast<quintptr>(addr), 16)
-        << " in " << moduleName
-        << "+0x" << QString::number(offset, 16);
+    // Plain stderr write — qCritical() routes through Qt's logging system,
+    // which itself allocates and may not flush before TerminateProcess.
+    char line[1024];
+    std::snprintf(
+        line, sizeof(line),
+        "\n*** Aurora crashed (%s) ***\n"
+        "  code=0x%08lX  addr=0x%p  thread=%lu\n"
+        "  in %s+0x%llX\n",
+        origin,
+        static_cast<unsigned long>(code),
+        addr,
+        static_cast<unsigned long>(::GetCurrentThreadId()),
+        moduleName,
+        static_cast<unsigned long long>(offset));
+    std::fputs(line, stderr);
+    std::fflush(stderr);
 
-    // Write a minidump for post-mortem analysis. Failure here is non-fatal
-    // — we still want to surface the crash text above.
+    // Write minidump.
     char dumpPath[MAX_PATH] = {};
     DWORD tempLen = ::GetTempPathA(sizeof(dumpPath), dumpPath);
     if (tempLen > 0 && tempLen < sizeof(dumpPath) - 64) {
@@ -171,21 +192,65 @@ LONG WINAPI auroraCrashFilter(EXCEPTION_POINTERS* info)
                 ::GetCurrentProcess(),
                 ::GetCurrentProcessId(),
                 hFile,
-                MiniDumpWithDataSegs,
+                static_cast<MINIDUMP_TYPE>(
+                    MiniDumpWithDataSegs |
+                    MiniDumpWithThreadInfo |
+                    MiniDumpWithUnloadedModules |
+                    MiniDumpWithIndirectlyReferencedMemory),
                 &mdei,
                 nullptr,
                 nullptr);
             ::CloseHandle(hFile);
+
             if (ok != FALSE) {
-                qCritical() << "Minidump written to" << dumpPath;
+                std::fprintf(stderr, "  minidump: %s\n", dumpPath);
             } else {
-                qWarning() << "MiniDumpWriteDump failed for" << dumpPath
-                           << ", GetLastError=" << ::GetLastError();
+                std::fprintf(stderr,
+                    "  MiniDumpWriteDump failed, GetLastError=%lu\n",
+                    static_cast<unsigned long>(::GetLastError()));
             }
+            std::fflush(stderr);
         }
     }
+}
+} // namespace
 
-    return EXCEPTION_EXECUTE_HANDLER;
+/**
+ * @brief Frame-based last-resort SEH filter.
+ *
+ * This fires only if absolutely nobody else handled the exception, which on
+ * Windows is *not* guaranteed: Qt or the CRT may install their own filter
+ * after we install ours, and they may call TerminateProcess directly.
+ * That's why we additionally register a vectored exception handler below
+ * (it runs *before* any frame-based handler in any thread).
+ */
+LONG WINAPI auroraCrashFilter(EXCEPTION_POINTERS* info)
+{
+    if (info != nullptr && info->ExceptionRecord != nullptr) {
+        writeCrashReport(info, "SetUnhandledExceptionFilter");
+    }
+    return EXCEPTION_EXECUTE_HANDLER; // terminate process
+}
+
+/**
+ * @brief First-chance vectored exception handler — runs before any
+ * frame-based / structured handler in *any* thread. We must filter to fatal
+ * codes only, otherwise we'd fire on every benign C++ throw (which on MSVC
+ * is implemented as SEH code 0xE06D7363).
+ *
+ * Returns EXCEPTION_CONTINUE_SEARCH so the OS still terminates the process
+ * normally after we've recorded the crash; otherwise we'd be telling the
+ * kernel "false alarm, resume execution at the faulting RIP" — an infinite
+ * loop on a real AV.
+ */
+LONG CALLBACK auroraVectoredHandler(EXCEPTION_POINTERS* info)
+{
+    if (info != nullptr && info->ExceptionRecord != nullptr &&
+        isFatalSehCode(info->ExceptionRecord->ExceptionCode))
+    {
+        writeCrashReport(info, "VectoredExceptionHandler");
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
 }
 
 /**
@@ -347,10 +412,11 @@ void configureFont(QApplication& app)
 int main(int argc, char *argv[])
 {
 #ifdef Q_OS_WIN
-    // Install before anything else: the SEH filter must be in place before
-    // any code path that might dereference a stale pointer (asio thread,
-    // Qt event loop, etc.). Otherwise hard crashes are silent and produce
-    // only an opaque $LASTEXITCODE = 0xC0000005.
+    // Install before anything else: the vectored handler runs before any
+    // frame-based SEH handler in any thread, so it captures crashes even if
+    // Qt / CRT later override SetUnhandledExceptionFilter. We also install
+    // the legacy filter as a belt-and-suspenders backup.
+    ::AddVectoredExceptionHandler(/*FirstHandler=*/1, auroraVectoredHandler);
     ::SetUnhandledExceptionFilter(auroraCrashFilter);
 #endif
 
@@ -361,6 +427,12 @@ int main(int argc, char *argv[])
     installMacNativeCursorFilter();
 #else
     QApplication app(argc, argv);
+#  ifdef Q_OS_WIN
+    // Qt's QCoreApplication on Windows historically installed its own
+    // SetUnhandledExceptionFilter and stomped over ours. Re-install to be
+    // safe — vectored handler is still the primary defence.
+    ::SetUnhandledExceptionFilter(auroraCrashFilter);
+#  endif
 #endif
 
 #ifdef Q_OS_MACOS
