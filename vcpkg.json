@@ -20,7 +20,7 @@
       "name": "qt5compat",
       "default-features": false
     },
-    "qt6keychain",
+    "qtkeychain-qt6",
     "boost-asio",
     "boost-beast",
     "boost-locale",
