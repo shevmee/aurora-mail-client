@@ -23,10 +23,9 @@ namespace aurora::mail::common::mail
     MailMessageBuilder() = default;
 
     /**
-     * @brief Sets the sender's email address.
+     * @brief Sets the sender's address (RFC 5322 `From` header).
      *
-     * @param email The sender's email address.
-     * @param name (Optional) The sender's display name.
+     * @param sender Email address (and optional display name) of the sender.
      * @return Reference to the builder for chaining.
      */
     MailMessageBuilder& from(const MailAddress& sender);

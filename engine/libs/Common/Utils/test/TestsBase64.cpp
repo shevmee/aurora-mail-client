@@ -209,6 +209,62 @@ TEST(Base64Test, EncodedString_ContainsOnlyValidChars)
   }
 }
 
+TEST(Base64Test, Decode_ExactLength_NoTrailingNuls)
+{
+  // Regression: base64Decode used to size the output buffer to the upper
+  // bound returned by beast::base64::decoded_size() and never trim. That
+  // left trailing NUL bytes in the output for any input that did not use
+  // '=' padding. Any caller that compared bytes (e.g. IMAP Modified UTF-7
+  // decoding the result through a UTF-16BE converter) would observe phantom
+  // U+0000 characters at the end of folder names. The decoded string MUST
+  // match the original byte-for-byte for properly padded input.
+  EXPECT_EQ(base64Decode("SGVsbG8sIHdvcmxkIQ=="), "Hello, world!");
+  EXPECT_EQ(base64Decode("SGVsbG8="), "Hello");
+  EXPECT_EQ(base64Decode("Zm9vYmFy"), "foobar");
+  EXPECT_EQ(base64Decode("Zg=="), "f");
+  EXPECT_EQ(base64Decode("Zm8="), "fo");
+  EXPECT_EQ(base64Decode("Zm9v"), "foo");
+  EXPECT_EQ(base64Decode(""), "");
+}
+
+TEST(Base64Test, Decode_UnpaddedInputBehaviorIsImplementationDefined)
+{
+  // INCONSISTENCY DOC: Boost.Beast's underlying base64::decode does not
+  // strictly require '=' padding; for an input that is not a multiple of 4
+  // characters it decodes the complete groups *and* writes garbage bytes
+  // (zero or the leftover bits of the final partial group) for the partial
+  // tail without error. The decoded size returned by decode() includes
+  // those bytes. Callers that need an exact result MUST pad the input
+  // first. ImapUtf7::decodeImapUtf7 does this with:
+  //     size_t padding = (4 - (encoded.length() % 4)) % 4;
+  //     encoded.append(padding, '=');
+  // We pin the actual behaviour here to flag any silent change in upstream
+  // boost::beast (which lives under boost/beast/core/detail/base64.hpp and
+  // is not part of beast's public API).
+  const std::string r = base64Decode("SGVsbG8");
+  // Implementation currently returns "Hel" + two 0x00 bytes. We assert the
+  // *prefix* matches the meaningful 3-byte decode, but do not commit to the
+  // garbage tail's content -- only that it exists. If Boost.Beast tightens
+  // up later this test should be revisited.
+  ASSERT_GE(r.size(), 3U);
+  EXPECT_EQ(r.substr(0, 3), "Hel");
+}
+
+TEST(Base64Test, EncodeDecode_RoundTripExactLength)
+{
+  // After fixing decoded_size truncation, round-trips must be byte-exact.
+  for (const std::string& original : { std::string{ "f" },
+                                       std::string{ "fo" },
+                                       std::string{ "foo" },
+                                       std::string{ "foob" },
+                                       std::string{ "fooba" },
+                                       std::string{ "foobar" },
+                                       std::string{ "Hello, world!" } })
+  {
+    EXPECT_EQ(base64Decode(base64Encode(original)), original);
+  }
+}
+
 TEST(Base64Test, EncodedString_ProperPadding)
 {
   std::string decoded1 = "A";

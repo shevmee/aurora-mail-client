@@ -174,10 +174,9 @@ namespace aurora::mail::common
      * @brief Detect if a line indicates incoming literal data.
      *
      * Override in derived classes for protocol-specific literal handling.
-     * For example, IMAP uses {size} syntax for literals.
+     * For example, IMAP uses `{size}` syntax for literals.
      *
-     * @param line The line to check for literal indicator
-     * @return The literal size if detected, std::nullopt otherwise
+     * @return The literal size if detected, `std::nullopt` otherwise.
      */
     virtual std::optional<std::size_t> detectLiteralSize(std::string_view) const
     {

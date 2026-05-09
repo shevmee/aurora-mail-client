@@ -12,7 +12,7 @@ namespace aurora::mail::app::utils
    *
    * This class addresses real production issues encountered on macOS:
    * - CoreText crashes in CTFontDrawGlyphs/CopyEmojiImage when rendering emoji
-   * - Qt's CSS parser errors on non-standard hex color formats (#RGBA, #RRGGBBAA)
+   * - Qt's CSS parser errors on non-standard hex color formats (`#RGBA`, `#RRGGBBAA`)
    * - Malformed Unicode sequences that cause rendering artifacts
    *
    * Design principles:

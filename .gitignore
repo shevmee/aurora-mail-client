@@ -34,6 +34,11 @@ ui_*.h
 # OS
 .DS_Store
 
+# Generated Doxygen output (engine/Doxyfile and desktop/Doxyfile write here).
+# The mainpage and the vendored doxygen-awesome theme under docs/ are kept.
+engine/docs/
+desktop/docs/
+
 # Personal notes / scratch (never commit)
 text.md
 text.md.recovered.bak

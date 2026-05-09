@@ -1,0 +1,118 @@
+<!-- HTML header for doxygen $doxygenversion-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=11"/>
+<meta name="generator" content="Doxygen $doxygenversion"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<!--BEGIN PROJECT_NAME--><title>$projectname: $title</title><!--END PROJECT_NAME-->
+<!--BEGIN !PROJECT_NAME--><title>$title</title><!--END !PROJECT_NAME-->
+<link href="$relpath^tabs.css" rel="stylesheet" type="text/css"/>
+$treeview
+$search
+$mathjax
+$darkmode
+<link href="$relpath^$stylesheet" rel="stylesheet" type="text/css" />
+$extrastylesheet
+
+<!-- doxygen-awesome runtime helpers (loaded once the DOM is ready) -->
+<script type="text/javascript" src="$relpath^doxygen-awesome-darkmode-toggle.js"></script>
+<script type="text/javascript" src="$relpath^doxygen-awesome-fragment-copy-button.js"></script>
+<script type="text/javascript" src="$relpath^doxygen-awesome-paragraph-link.js"></script>
+<script type="text/javascript" src="$relpath^doxygen-awesome-interactive-toc.js"></script>
+<script type="text/javascript">
+  DoxygenAwesomeDarkModeToggle.init()
+  DoxygenAwesomeFragmentCopyButton.init()
+  DoxygenAwesomeParagraphLink.init()
+  DoxygenAwesomeInteractiveToc.init()
+</script>
+
+<!--
+  Mermaid 11 (CDN). We pick the theme based on the current doxygen-awesome
+  light/dark mode and re-render diagrams whenever the toggle flips, so the
+  architecture diagram stays legible in both modes.
+-->
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+  function pickMermaidTheme() {
+    // doxygen-awesome adds "dark-mode" / "light-mode" classes to <html>.
+    const cl = document.documentElement.classList;
+    const isDark = cl.contains("dark-mode") ||
+                   (!cl.contains("light-mode") && window.matchMedia &&
+                    window.matchMedia("(prefers-color-scheme: dark)").matches);
+    return isDark ? "dark" : "default";
+  }
+
+  function renderMermaid() {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: pickMermaidTheme(),
+      securityLevel: "loose",
+      flowchart: { htmlLabels: true, curve: "basis" }
+    });
+    document.querySelectorAll("pre.mermaid, div.mermaid").forEach(el => {
+      // Preserve the source so we can re-render after a theme switch.
+      if (!el.dataset.mermaidSource) el.dataset.mermaidSource = el.textContent;
+      el.textContent = el.dataset.mermaidSource;
+      el.removeAttribute("data-processed");
+    });
+    mermaid.run({ querySelector: "pre.mermaid, div.mermaid" });
+  }
+
+  document.addEventListener("DOMContentLoaded", renderMermaid);
+
+  // Re-render when the user toggles dark mode.
+  new MutationObserver(renderMermaid).observe(document.documentElement, {
+    attributes: true, attributeFilter: ["class"]
+  });
+</script>
+</head>
+<body>
+<div id="top"><!-- do not remove this div, it is closed by doxygen! -->
+
+<!--BEGIN TITLEAREA-->
+<div id="titlearea">
+<table cellspacing="0" cellpadding="0">
+ <tbody>
+ <tr id="projectrow">
+  <!--BEGIN PROJECT_LOGO-->
+  <td id="projectlogo"><img alt="Logo" src="$relpath^$projectlogo"/></td>
+  <!--END PROJECT_LOGO-->
+  <!--BEGIN PROJECT_NAME-->
+  <td id="projectalign">
+   <div id="projectname">$projectname<!--BEGIN PROJECT_NUMBER--><span id="projectnumber">&#160;$projectnumber</span><!--END PROJECT_NUMBER-->
+   </div>
+   <!--BEGIN PROJECT_BRIEF--><div id="projectbrief">$projectbrief</div><!--END PROJECT_BRIEF-->
+  </td>
+  <!--END PROJECT_NAME-->
+  <!--BEGIN !PROJECT_NAME-->
+   <!--BEGIN PROJECT_BRIEF-->
+    <td>
+    <div id="projectbrief">$projectbrief</div>
+    </td>
+   <!--END PROJECT_BRIEF-->
+  <!--END !PROJECT_NAME-->
+  <!--BEGIN DISABLE_INDEX-->
+   <!--BEGIN SEARCHENGINE-->
+    <!--BEGIN !PROJECT_NAME-->
+     <td>
+    <!--END !PROJECT_NAME-->
+    $searchbox
+    <!--BEGIN !PROJECT_NAME-->
+     </td>
+    <!--END !PROJECT_NAME-->
+   <!--END SEARCHENGINE-->
+  <!--END DISABLE_INDEX-->
+ </tr>
+ <!--BEGIN SEARCHENGINE-->
+  <!--BEGIN !DISABLE_INDEX-->
+   <tr><td colspan="2">$searchbox</td></tr>
+  <!--END !DISABLE_INDEX-->
+ <!--END SEARCHENGINE-->
+ </tbody>
+</table>
+</div>
+<!--END TITLEAREA-->
+<!-- end header part -->

@@ -21,3 +21,19 @@ target_include_directories(Configs PUBLIC
 #   * desktop/src/Core/Config (AppConfig + JSON loader, tested as part of the
 #     desktop test suite once it is wired into BUILD_TESTS).
 #   * engine/main.cpp inline loader is exercised by the existing CLI smoke tests.
+#
+# Pure-data tests (port helpers, ConnectionMode formatting) live with the
+# struct definitions and run as ConfigsTests.
+if(BUILD_TESTS AND GTest_FOUND AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/TestsStartupConfig.cpp)
+    add_executable(ConfigsTests test/TestsStartupConfig.cpp)
+
+    target_compile_features(ConfigsTests PRIVATE cxx_std_23)
+
+    target_link_libraries(ConfigsTests PRIVATE
+        Configs
+        GTest::gtest
+        GTest::gtest_main
+    )
+
+    add_test(NAME ConfigsTests COMMAND ConfigsTests)
+endif()

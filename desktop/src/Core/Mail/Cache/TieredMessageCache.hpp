@@ -78,6 +78,18 @@ namespace aurora::mail::app::cache
     /// True if a persistent tier is attached for `accountId`.
     [[nodiscard]] bool hasPersistentTier(const QString& accountId) const;
 
+    /**
+     * Drop in-memory entries for `accountId` and detach (close) its persistent
+     * tier handle, but DO NOT shred the on-disk DB or the per-account master
+     * key in the keychain. Used on account-switch / add-another-account where
+     * we want to free RAM and release the SQLite handle but keep the data so
+     * the user does not pay the cost of a fresh full sync when they come back.
+     *
+     * In contrast, invalidateAccount() destroys both the on-disk DB and the
+     * keychain key — that is the correct behaviour for an explicit sign-out.
+     */
+    void unloadAccount(const QString& accountId);
+
    private:
     PersistentMessageCache* persistentFor_locked(const QString& accountId) const;
 

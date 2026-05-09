@@ -42,7 +42,13 @@ if(MSVC)
     endforeach()
 endif()
 
+# Activate CTest at the root so `ctest` from the top-level build dir
+# discovers test() calls in both engine/ and desktop/. The actual GTest
+# discovery is gated on -DBUILD_TESTS=ON inside each subdir.
+include(CTest)
+
 add_subdirectory(engine)
 add_subdirectory(desktop)
 
 include(cmake/AuroraDevTools.cmake)
+include(cmake/AuroraDocs.cmake)

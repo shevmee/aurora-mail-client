@@ -25,6 +25,7 @@ target_link_libraries(Logging PUBLIC
 if(BUILD_TESTS AND GTest_FOUND AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test)
     add_executable(LoggingTests
         test/TestsLogMessage.cpp
+        test/TestsLogger.cpp
     )
 
     target_compile_features(LoggingTests PRIVATE cxx_std_23)

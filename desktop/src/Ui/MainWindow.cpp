@@ -236,7 +236,15 @@ void MainWindow::setupConnections()
       this,
       &MainWindow::onOAuthAuthenticated,
       Qt::QueuedConnection);
-  connect(m_session.get(), &SessionCoordinator::sessionTeardownRequested, this, &MainWindow::teardownActiveSession);
+  // SessionCoordinator emits sessionTeardownRequested only on explicit
+  // sign-out — we therefore route it to the cache-destroying variant. The
+  // soft-teardown variant (cache preserved) is invoked directly from the
+  // account-switch and add-another-account paths in this view.
+  connect(
+      m_session.get(),
+      &SessionCoordinator::sessionTeardownRequested,
+      this,
+      [this]() { teardownActiveSession(/*destroyPersistentCache=*/true); });
   connect(
       m_session.get(),
       &SessionCoordinator::loginPageRequested,
@@ -815,7 +823,7 @@ namespace
     }
     QString host = trimmed;
     quint16 port = defaultPort;
-    const int colon = trimmed.indexOf(QChar(':'));
+    const qsizetype colon = trimmed.indexOf(QChar(':'));
     if (colon >= 0)
     {
       host = trimmed.left(colon);
@@ -1085,7 +1093,7 @@ void MainWindow::onSignOutButtonClicked()
   // completeMailAuthenticationUi().
 }
 
-void MainWindow::teardownActiveSession()
+void MainWindow::teardownActiveSession(bool destroyPersistentCache)
 {
   // Stop IDLE / pump first so no in-flight FETCH races the disconnect.
   stopPolling();
@@ -1107,20 +1115,35 @@ void MainWindow::teardownActiveSession()
   }
 
   // Reset per-account UI state so the next account never sees stale data.
-  // Sign-out is the moment to *destroy* persisted mail for this account: the
-  // tiered cache deletes the on-disk DB and shreds the per-account master key
-  // from the keychain, so no future process can recover the bodies.
+  // Two distinct dispositions for the cache (see teardownActiveSession docs):
+  //   * destroyPersistentCache == true  → sign-out: shred on-disk DB and the
+  //     per-account AES master key in the keychain, so no future process can
+  //     recover the bodies.
+  //   * destroyPersistentCache == false → account-switch / add-account: drop
+  //     only the in-memory tier and close the SQLite handle. The on-disk file
+  //     and the keychain key are preserved, so when the user comes back to
+  //     this account the next ensureMessageCacheForCurrentAccount() will
+  //     simply re-attach and the user pays no fresh-sync cost.
   const QString outgoingAccount = m_currentUser;
   m_currentMailbox = QStringLiteral("Inbox");
   m_currentMailboxUidValidity = 0;
   m_displayedMessageKey = aurora::mail::app::cache::MessageKey{};
+  m_pendingDisplayKey = aurora::mail::app::cache::MessageKey{};
   if (!outgoingAccount.isEmpty())
   {
-    m_messageCache.invalidateAccount(outgoingAccount);
+    if (destroyPersistentCache)
+    {
+      m_messageCache.invalidateAccount(outgoingAccount);
+    }
+    else
+    {
+      m_messageCache.unloadAccount(outgoingAccount);
+    }
   }
-  else
+  else if (destroyPersistentCache)
   {
-    // No identifiable account (early failure path): wipe everything.
+    // No identifiable account on a sign-out (early failure path): wipe
+    // everything to be on the safe side.
     m_messageCache.clear();
   }
   if (m_emailListManager != nullptr)
@@ -1383,7 +1406,7 @@ void MainWindow::loadFolders(std::function<void()> afterAppliedOnQtThread)
       boost::asio::detached);
 }
 
-void MainWindow::applyFolderList(std::vector<aurora::mail::imap::MailboxInfo> folders)
+void MainWindow::applyFolderList(const std::vector<aurora::mail::imap::MailboxInfo>& folders)
 {
   qDebug() << "Loaded" << folders.size() << "folders";
 
@@ -1550,6 +1573,11 @@ void MainWindow::loadEmailContent(const QString& uid)
   {
     return;
   }
+
+  // Record the user's latest intent before any await point. applyParsedEmailBodyOnQt
+  // uses this to discard UI updates from older, now-stale FETCH responses when
+  // the user clicks through several messages faster than the network can answer.
+  m_pendingDisplayKey = key;
 
   // Tier 1/Tier 2 cache lookup. Only attempt if UIDVALIDITY is known (key.isValid):
   // before SELECT completes we cannot prove the cached entry refers to the same UID.
@@ -2853,8 +2881,22 @@ void MainWindow::applyParsedEmailBodyOnQt(const ParsedEmailContent& content, con
     m_messageCache.releasePending(key);
   }
 
+  // Stale-response gate: when the user has already clicked away to a newer
+  // message, m_pendingDisplayKey points at that newer key. We MUST NOT touch
+  // the reader pane in that case (it would visibly snap back to an older
+  // message, or to "Failed to load email" if this older fetch happened to
+  // fail), but we still want to populate the cache so the next click on this
+  // UID is instant.
+  const bool isStale = m_pendingDisplayKey.isValid() && key.isValid() && key != m_pendingDisplayKey;
+
   if (!content.isValid())
   {
+    if (isStale)
+    {
+      // Older fetch failed but the user is no longer waiting for it. Stay
+      // quiet — the still-pending request will drive the UI on its own.
+      return;
+    }
     // Reset the entire reader pane (subject/meta/body/attachments) so a stale
     // attachments bar or body from a previously viewed message can't bleed
     // through behind the failure notice.
@@ -2862,7 +2904,8 @@ void MainWindow::applyParsedEmailBodyOnQt(const ParsedEmailContent& content, con
     return;
   }
 
-  m_displayedMessageKey = key;
+  // Cache the body regardless of staleness, so a subsequent click on this UID
+  // is served from tier 1 instead of going back to the network.
   if (key.isValid())
   {
     aurora::mail::app::cache::CachedMessage entry;
@@ -2872,6 +2915,16 @@ void MainWindow::applyParsedEmailBodyOnQt(const ParsedEmailContent& content, con
     entry.approximateBytes = aurora::mail::app::cache::CachedMessage::approximateBytesOf(content);
     m_messageCache.put(std::move(entry));
   }
+
+  if (isStale)
+  {
+    // Body cached above; UI stays focused on what the user is actually
+    // waiting for. Read state is also intentionally NOT updated here — the
+    // user did not really "read" this message.
+    return;
+  }
+
+  m_displayedMessageKey = key;
 
   ui->EmailSubjectLabel->setText(TextSanitizer::sanitizePlainText(content.subject));
   ui->EmailMetaLabel->setText(QString("From: %1").arg(TextSanitizer::sanitizePlainText(content.from)));

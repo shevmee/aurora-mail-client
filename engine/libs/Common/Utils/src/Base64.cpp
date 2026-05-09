@@ -15,9 +15,19 @@ namespace aurora::mail::common::base64
 
   std::string base64Decode(std::string_view encoded)
   {
+    // beast::base64::decoded_size() is an *upper bound* — the real number of
+    // decoded bytes is only known after the call. The previous implementation
+    // ignored that return value, which left trailing NUL bytes in the output
+    // (visible whenever the input had no '=' padding). Several call sites then
+    // compensated with `substr(0, original.length())`, which masked the bug
+    // for callers who happened to know the original length, while breaking
+    // any caller that needed an exact result (e.g. IMAP Modified UTF-7
+    // decoding, which feeds the bytes straight into a UTF-16BE → UTF-8
+    // converter and emits literal U+0000 codepoints in folder names).
     std::size_t decoded_size = beast::base64::decoded_size(encoded.size());
     std::string decoded_output(decoded_size, '\0');
-    beast::base64::decode(decoded_output.data(), encoded.data(), encoded.size());
+    auto const [written, _] = beast::base64::decode(decoded_output.data(), encoded.data(), encoded.size());
+    decoded_output.resize(written);
     return decoded_output;
   }
 

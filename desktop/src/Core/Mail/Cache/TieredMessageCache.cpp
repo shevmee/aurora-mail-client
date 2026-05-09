@@ -129,6 +129,24 @@ namespace aurora::mail::app::cache
     }
   }
 
+  void TieredMessageCache::unloadAccount(const QString& accountId)
+  {
+    memory_.invalidateAccount(accountId);
+
+    std::unique_ptr<PersistentMessageCache> closing;
+    {
+      std::lock_guard<std::mutex> lock(tiersMutex_);
+      if (auto it = persistent_.find(accountId); it != persistent_.end())
+      {
+        closing = std::move(it->second);
+        persistent_.erase(it);
+      }
+    }
+    // Letting the unique_ptr go out of scope here closes the SQLite handle
+    // (~PersistentMessageCache → ~QSqlDatabase) but leaves the on-disk file
+    // and the keychain master key untouched.
+  }
+
   void TieredMessageCache::clear()
   {
     memory_.clear();

@@ -23,3 +23,21 @@ target_link_libraries(MimeHandling PUBLIC
     PkgConfig::gmime
     MailMessage
 )
+
+if(BUILD_TESTS AND GTest_FOUND AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test)
+    add_executable(MimeHandlingTests
+        test/TestsMimeParseError.cpp
+        test/TestsMimeWriter.cpp
+        test/TestsMimeReader.cpp
+    )
+
+    target_compile_features(MimeHandlingTests PRIVATE cxx_std_23)
+
+    target_link_libraries(MimeHandlingTests PRIVATE
+        MimeHandling
+        GTest::gtest
+        GTest::gtest_main
+    )
+
+    add_test(NAME MimeHandlingTests COMMAND MimeHandlingTests)
+endif()

@@ -24,8 +24,12 @@ target_link_libraries(Utils PUBLIC
 
 # Build tests only if BUILD_TESTS is enabled and GTest is available
 if(BUILD_TESTS AND GTest_FOUND)
-    add_executable(UtilsTests 
+    add_executable(UtilsTests
         test/TestsBase64.cpp
+        test/TestsImapUtf7.cpp
+        test/TestsTagGenerator.cpp
+        test/TestsCommandValidation.cpp
+        test/TestsProtocolError.cpp
     )
 
     target_compile_features(UtilsTests PRIVATE cxx_std_23)

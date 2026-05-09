@@ -42,6 +42,7 @@ if(MSVC)
 endif()
 
 add_subdirectory(src)
+add_subdirectory(test)
 
 # ----------------------------------------------------------------------------
 #
@@ -145,41 +146,6 @@ target_link_libraries(aurora-mail PRIVATE
 #   psapi    – GetModuleFileNameA for resolving the crash address to a DLL.
 if(WIN32)
     target_link_libraries(aurora-mail PRIVATE crypt32 dbghelp psapi)
-endif()
-
-if(APPLE)
-    # AGL was deprecated in macOS 10.9 and removed from SDK 10.14+
-    # Qt 6.8.0 still links to it - create a stub framework
-
-    set(AGL_FRAMEWORK_DIR "${CMAKE_BINARY_DIR}/Frameworks/AGL.framework/Versions/A")
-    file(MAKE_DIRECTORY "${AGL_FRAMEWORK_DIR}")
-
-    # Create stub source
-    file(WRITE "${CMAKE_BINARY_DIR}/agl_stub.c"
-        "/* Stub for deprecated AGL framework */\nvoid __agl_dummy__(void) {}\n")
-
-    # Build as dylib with framework install name
-    add_library(agl_stub SHARED "${CMAKE_BINARY_DIR}/agl_stub.c")
-    set_target_properties(agl_stub PROPERTIES
-        OUTPUT_NAME "AGL"
-        LIBRARY_OUTPUT_DIRECTORY "${AGL_FRAMEWORK_DIR}"
-        SUFFIX ""
-        PREFIX ""
-        INSTALL_NAME_DIR "@rpath/AGL.framework/Versions/A"
-        BUILD_WITH_INSTALL_RPATH TRUE
-        MACOSX_RPATH OFF
-    )
-
-    # Create symlinks for framework structure
-    add_custom_command(TARGET agl_stub POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E create_symlink "Versions/A/AGL" "${CMAKE_BINARY_DIR}/Frameworks/AGL.framework/AGL"
-        COMMAND ${CMAKE_COMMAND} -E create_symlink "A" "${CMAKE_BINARY_DIR}/Frameworks/AGL.framework/Versions/Current"
-    )
-
-    add_dependencies(aurora-mail agl_stub)
-
-    # Tell linker where to find our framework
-    target_link_options(aurora-mail PRIVATE "-F${CMAKE_BINARY_DIR}/Frameworks")
 endif()
 
 # Windows: GUI subsystem. macOS: .app bundle only on Apple toolchains.

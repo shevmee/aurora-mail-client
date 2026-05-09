@@ -82,7 +82,10 @@ namespace aurora::mail::common::message_cache
     /**
      * @brief Update flags for a message.
      *
-     * @param modseq Optional new MODSEQ for the message
+     * @param mailbox Mailbox name the message belongs to.
+     * @param uid     Message UID inside @p mailbox.
+     * @param flags   Space-separated IMAP flag list (e.g. "\\Seen \\Answered").
+     * @param modseq  Optional new MODSEQ for the message.
      */
     virtual void updateFlags(const std::string& mailbox, uint32_t uid, const std::string& flags, uint64_t modseq = 0) = 0;
 
@@ -103,8 +106,10 @@ namespace aurora::mail::common::message_cache
     /**
      * @brief Store body content for a message.
      *
-     * @param text_body Plain text body content
-     * @param html_body HTML body content
+     * @param mailbox   Mailbox name the message belongs to.
+     * @param uid       Message UID inside @p mailbox.
+     * @param text_body Plain-text body content (may be empty).
+     * @param html_body HTML body content (may be empty).
      */
     virtual void
     setMessageBody(const std::string& mailbox, uint32_t uid, const std::string& text_body, const std::string& html_body) = 0;

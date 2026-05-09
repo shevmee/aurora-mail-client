@@ -9,6 +9,15 @@
 namespace aurora::mail::common::logger
 {
 
+  /**
+   * @brief Process-wide singleton wrapper around @ref Logger.
+   *
+   * Holds the one Logger that the rest of the engine shares via the
+   * free-function helpers @ref log_debug, @ref log_info, @ref log_warn and
+   * @ref log_error. The first @ref init() call wins; subsequent calls are
+   * no-ops, which makes the singleton safe to initialise from `main()` and
+   * still tolerate accidental re-initialisation in tests.
+   */
   class LoggerInstance
   {
    private:

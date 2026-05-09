@@ -258,10 +258,17 @@ class MainWindow : public QMainWindow
    * that the next session never observes data from the previous one.
    * Identity (current user, auth method, in-memory tokens) is reset by the
    * @ref SessionCoordinator at the end of this method.
+   *
+   * @param destroyPersistentCache  When true (the sign-out path), the
+   *        outgoing account's on-disk encrypted message cache is shredded
+   *        and its per-account AES master key is erased from the keychain.
+   *        When false (default; account-switch / add-another-account paths),
+   *        only the in-memory tier is dropped and the SQLite handle is
+   *        closed, so the on-disk data survives for the next visit.
    */
-  void teardownActiveSession();
+  void teardownActiveSession(bool destroyPersistentCache = false);
 
-  void applyFolderList(std::vector<aurora::mail::imap::MailboxInfo> folders);
+  void applyFolderList(const std::vector<aurora::mail::imap::MailboxInfo>& folders);
 
   // =========================================================================
   // Email Operations (IMAP)
@@ -378,6 +385,13 @@ class MainWindow : public QMainWindow
   quint32 m_currentMailboxUidValidity = 0;
   /// Set when the reader successfully shows a message; avoids redundant UID FETCH for same item.
   aurora::mail::app::cache::MessageKey m_displayedMessageKey;
+  /// The UID the user most recently expressed intent to view (i.e. the latest
+  /// click). Updated synchronously inside loadEmailContent before any network
+  /// work starts. applyParsedEmailBodyOnQt compares the inbound key against
+  /// this field and skips the UI update (but still puts the body into the
+  /// cache) for stale responses, so a flurry of clicks never leaves the
+  /// reader stranded on an out-of-order or failed earlier response.
+  aurora::mail::app::cache::MessageKey m_pendingDisplayKey;
   /// In-flight load coordination is delegated to the cache (reservePending/releasePending).
   /// Tier 1 (memory) + tier 2 (per-account encrypted SQLite) message body cache.
   aurora::mail::app::cache::TieredMessageCache m_messageCache;
