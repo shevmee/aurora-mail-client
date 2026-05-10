@@ -97,10 +97,6 @@ else()
     )
 endif()
 
-if(APPLE)
-    target_sources(aurora-mail PRIVATE MacNativeCursorFilter.mm)
-endif()
-
 # Embed compiled .qm files into the binary under ":/translations/<basename>.qm",
 # matching the prefix used by main.cpp's QTranslator::load(":/translations").
 # qt_add_resources() (rather than AUTORCC) is required here because the .qm

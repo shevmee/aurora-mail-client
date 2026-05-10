@@ -8,7 +8,6 @@
 #include <QStyleFactory>
 #include <QMessageBox>
 #include <QStandardPaths>
-#include <QEvent>
 #include <QTranslator>
 
 #include <boost/asio/ssl.hpp>
@@ -31,10 +30,6 @@
 #include "ImapClient.hpp"
 #include "LoggerInstance.hpp"
 #include "Config/AppConfig.hpp"
-
-#ifdef Q_OS_MACOS
-#include "MacNativeCursorFilter.hpp"
-#endif
 
 namespace ssl = boost::asio::ssl;
 using namespace aurora::mail::common;
@@ -355,41 +350,8 @@ void configureSslContext(ssl::context& ctx)
 }
 
 /**
- * @brief Configures platform-specific settings before QApplication creation.
- */
-void configurePlatformSettings()
-{
-#ifdef Q_OS_MACOS
-    // Qt 6.9 + macOS 15: AppKit can crash in setCursorFromBundle→ImageIO when showing "hand" cursors
-    // during resize. Fusion alone is not enough; avoid PointingHand in the UI (see applyMacSafeCursors).
-    qputenv("QT_STYLE_OVERRIDE", "Fusion");
-#endif
-}
-
-/**
  * @brief Configures font with emoji fallback support.
  */
-#ifdef Q_OS_MACOS
-/**
- * Qt may leave SplitH/SplitV cursors on AppKit's override stack; AppKit then crashes in
- * setCursorFromBundle→ImageIO when resizing the window. Clear the stack before mouse handling.
- */
-class AuroraApplication final : public QApplication {
-public:
-    using QApplication::QApplication;
-
-    bool notify(QObject* receiver, QEvent* event) override
-    {
-        if (event && event->type() == QEvent::MouseButtonPress) {
-            while (QApplication::overrideCursor()) {
-                QApplication::restoreOverrideCursor();
-            }
-        }
-        return QApplication::notify(receiver, event);
-    }
-};
-#endif
-
 void configureFont(QApplication& app)
 {
     QFont defaultFont = app.font();
@@ -420,22 +382,21 @@ int main(int argc, char *argv[])
     ::SetUnhandledExceptionFilter(auroraCrashFilter);
 #endif
 
-    configurePlatformSettings(); // Must be called before QApplication
-
-#ifdef Q_OS_MACOS
-    AuroraApplication app(argc, argv);
-    installMacNativeCursorFilter();
-#else
     QApplication app(argc, argv);
-#  ifdef Q_OS_WIN
+
+#ifdef Q_OS_WIN
     // Qt's QCoreApplication on Windows historically installed its own
     // SetUnhandledExceptionFilter and stomped over ours. Re-install to be
     // safe — vectored handler is still the primary defence.
     ::SetUnhandledExceptionFilter(auroraCrashFilter);
-#  endif
 #endif
 
 #ifdef Q_OS_MACOS
+    // Qt 6.9 + macOS 15 regression: native style routes some controls through
+    // AppKit's bundled-cursor loader (setCursorFromBundle → ImageIO), which
+    // crashes when the cached PNG asset fails to materialise. Forcing Fusion
+    // bypasses that path; the remaining widget-level cursor normalisation is
+    // performed once in MainWindow::applyMacSafeCursors().
     if (QStyle* fusion = QStyleFactory::create(QStringLiteral("Fusion"))) {
         app.setStyle(fusion);
     }

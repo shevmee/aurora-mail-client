@@ -183,17 +183,37 @@ void MainWindow::loadStylesheet()
 void MainWindow::applyMacSafeCursors()
 {
 #ifdef Q_OS_MACOS
-  const QList<QWidget*> widgets = findChildren<QWidget*>(QString(), Qt::FindChildrenRecursively);
-  for (QWidget* w : widgets)
+  // Qt 6.9 + macOS 15: PointingHand / SplitH / SplitV map to AppKit bundled
+  // cursors that occasionally fail to load via setCursorFromBundle → ImageIO,
+  // crashing the process during a window resize. Forcing ArrowCursor on every
+  // widget that would otherwise request one of those shapes keeps Qt from
+  // ever entering the bundle-loading code path. This is the single, narrowly
+  // scoped place where the workaround lives — no QApplication subclassing,
+  // no AppKit method swizzling, no global event monitors.
+  const auto isUnsafeShape = [](Qt::CursorShape s) noexcept {
+    return s == Qt::PointingHandCursor
+        || s == Qt::SplitHCursor
+        || s == Qt::SplitVCursor;
+  };
+
+  for (QWidget* w : findChildren<QWidget*>(QString(), Qt::FindChildrenRecursively))
   {
-    if (w->cursor().shape() == Qt::PointingHandCursor)
+    if (isUnsafeShape(w->cursor().shape()))
     {
       w->setCursor(Qt::ArrowCursor);
     }
   }
-  if (cursor().shape() == Qt::PointingHandCursor)
+  if (isUnsafeShape(cursor().shape()))
   {
     setCursor(Qt::ArrowCursor);
+  }
+
+  // QSplitter installs SplitH/SplitV cursors on its handles automatically;
+  // route through the existing helper, which is also reused for splitters
+  // that are constructed later (see setupInboxSplitter / setupEmailReaderSplitter).
+  for (QSplitter* splitter : findChildren<QSplitter*>())
+  {
+    setMacSplitterHandlesArrow(splitter);
   }
 #endif
 }
@@ -1362,7 +1382,7 @@ void MainWindow::loadFolders(std::function<void()> afterAppliedOnQtThread)
               this,
               [this, folders = std::move(folders), after = std::move(after)]() mutable
               {
-                applyFolderList(std::move(folders));
+                applyFolderList(folders);
                 if (after)
                 {
                   after();
