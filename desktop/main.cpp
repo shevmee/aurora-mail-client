@@ -427,8 +427,15 @@ int main(int argc, char *argv[])
         : QLocale(QString::fromStdString(config.locale));
     QLocale::setDefault(uiLocale);
 
-    if (qtBaseTranslator.load(uiLocale, "qtbase", "_",
-        QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+    // QLibraryInfo::path() is Qt 6 only; Qt 5 spells it location(). Use the
+    // appropriate accessor based on the Qt version we're building against so
+    // the desktop app compiles cleanly on both Qt 5 and Qt 6.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    const QString qtTranslationsDir = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
+#else
+    const QString qtTranslationsDir = QLibraryInfo::location(QLibraryInfo::TranslationsPath);
+#endif
+    if (qtBaseTranslator.load(uiLocale, "qtbase", "_", qtTranslationsDir))
     {
         app.installTranslator(&qtBaseTranslator);
     }
