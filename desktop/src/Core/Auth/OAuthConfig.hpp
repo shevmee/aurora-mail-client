@@ -51,21 +51,21 @@ class OAuthConfigFactory
       case Provider::Gmail:
         config.authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
         config.tokenEndpoint = "https://oauth2.googleapis.com/token";
-        config.scopes = { "https://mail.google.com/",  // Full Gmail access (IMAP/SMTP XOAUTH2)
-                          "openid",
-                          "email",
-                          "profile" };
+        config.scopes = QStringList{ "https://mail.google.com/",  // Full Gmail access (IMAP/SMTP XOAUTH2)
+                                     "openid",
+                                     "email",
+                                     "profile" };
         break;
 
       case Provider::Outlook:
         config.authorizationEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
         config.tokenEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
-        config.scopes = { "https://outlook.office.com/IMAP.AccessAsUser.All",
-                          "https://outlook.office.com/SMTP.Send",
-                          "offline_access",
-                          "openid",
-                          "email",
-                          "profile" };
+        config.scopes = QStringList{ "https://outlook.office.com/IMAP.AccessAsUser.All",
+                                     "https://outlook.office.com/SMTP.Send",
+                                     "offline_access",
+                                     "openid",
+                                     "email",
+                                     "profile" };
         break;
 
       case Provider::Custom:

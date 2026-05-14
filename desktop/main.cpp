@@ -97,13 +97,12 @@ bool ensureConfigExists()
 }
 
 #ifdef Q_OS_WIN
-namespace {
 // Re-entrancy guard: if we crash *inside* the crash handler (e.g. heap is
-// corrupted and CreateFile / MiniDumpWriteDump trip another AV), we MUST NOT
-// recurse — that just deadlocks or pegs CPU. One process, one dump, one log.
+// corrupted and CreateFile / MiniDumpWriteDump trip another AV), bail out
+// instead of recursing. Atomic int — std::mutex is unsafe with broken heap.
 volatile LONG g_inCrashHandler = 0;
 
-bool isFatalSehCode(DWORD code)
+bool isFatalSehCode(DWORD code) noexcept
 {
     switch (code) {
     case EXCEPTION_ACCESS_VIOLATION:
@@ -122,11 +121,8 @@ bool isFatalSehCode(DWORD code)
     }
 }
 
-void writeCrashReport(EXCEPTION_POINTERS* info, const char* origin)
+void writeCrashReport(EXCEPTION_POINTERS* info)
 {
-    // First-shot safety: serialise multiple threads racing into the handler
-    // and bail out if we are already mid-report. We can't use std::mutex
-    // here — the heap might be the thing that's broken.
     if (::InterlockedExchange(&g_inCrashHandler, 1) != 0) {
         return;
     }
@@ -134,8 +130,8 @@ void writeCrashReport(EXCEPTION_POINTERS* info, const char* origin)
     const DWORD code = info->ExceptionRecord->ExceptionCode;
     void* const addr = info->ExceptionRecord->ExceptionAddress;
 
-    // Resolve <module>+<offset>. Use static buffers — no heap allocation in
-    // a possibly-corrupted heap.
+    // Resolve <module>+<offset> using static buffers (no heap allocation
+    // in a potentially corrupted heap).
     char moduleName[MAX_PATH] = "<unknown>";
     uintptr_t offset = 0;
     HMODULE hMod = nullptr;
@@ -148,15 +144,13 @@ void writeCrashReport(EXCEPTION_POINTERS* info, const char* origin)
         offset = reinterpret_cast<uintptr_t>(addr) - reinterpret_cast<uintptr_t>(hMod);
     }
 
-    // Plain stderr write — qCritical() routes through Qt's logging system,
-    // which itself allocates and may not flush before TerminateProcess.
+    // Bypass Qt's logging — it allocates and may not flush before TerminateProcess.
     char line[1024];
     std::snprintf(
         line, sizeof(line),
-        "\n*** Aurora crashed (%s) ***\n"
+        "\n*** Aurora crashed ***\n"
         "  code=0x%08lX  addr=0x%p  thread=%lu\n"
         "  in %s+0x%llX\n",
-        origin,
         static_cast<unsigned long>(code),
         addr,
         static_cast<unsigned long>(::GetCurrentThreadId()),
@@ -165,87 +159,85 @@ void writeCrashReport(EXCEPTION_POINTERS* info, const char* origin)
     std::fputs(line, stderr);
     std::fflush(stderr);
 
-    // Write minidump.
     char dumpPath[MAX_PATH] = {};
     DWORD tempLen = ::GetTempPathA(sizeof(dumpPath), dumpPath);
-    if (tempLen > 0 && tempLen < sizeof(dumpPath) - 64) {
-        std::snprintf(
-            dumpPath + tempLen,
-            sizeof(dumpPath) - tempLen,
-            "aurora-mail-crash-%lu.dmp",
-            static_cast<unsigned long>(::GetCurrentProcessId()));
-
-        HANDLE hFile = ::CreateFileA(
-            dumpPath, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (hFile != INVALID_HANDLE_VALUE) {
-            MINIDUMP_EXCEPTION_INFORMATION mdei{};
-            mdei.ThreadId = ::GetCurrentThreadId();
-            mdei.ExceptionPointers = info;
-            mdei.ClientPointers = FALSE;
-
-            const BOOL ok = ::MiniDumpWriteDump(
-                ::GetCurrentProcess(),
-                ::GetCurrentProcessId(),
-                hFile,
-                static_cast<MINIDUMP_TYPE>(
-                    MiniDumpWithDataSegs |
-                    MiniDumpWithThreadInfo |
-                    MiniDumpWithUnloadedModules |
-                    MiniDumpWithIndirectlyReferencedMemory),
-                &mdei,
-                nullptr,
-                nullptr);
-            ::CloseHandle(hFile);
-
-            if (ok != FALSE) {
-                std::fprintf(stderr, "  minidump: %s\n", dumpPath);
-            } else {
-                std::fprintf(stderr,
-                    "  MiniDumpWriteDump failed, GetLastError=%lu\n",
-                    static_cast<unsigned long>(::GetLastError()));
-            }
-            std::fflush(stderr);
-        }
+    if (tempLen == 0 || tempLen >= sizeof(dumpPath) - 64) {
+        return;
     }
-}
-} // namespace
+    std::snprintf(
+        dumpPath + tempLen,
+        sizeof(dumpPath) - tempLen,
+        "aurora-mail-crash-%lu.dmp",
+        static_cast<unsigned long>(::GetCurrentProcessId()));
 
-/**
- * @brief Frame-based last-resort SEH filter.
- *
- * This fires only if absolutely nobody else handled the exception, which on
- * Windows is *not* guaranteed: Qt or the CRT may install their own filter
- * after we install ours, and they may call TerminateProcess directly.
- * That's why we additionally register a vectored exception handler below
- * (it runs *before* any frame-based handler in any thread).
- */
-LONG WINAPI auroraCrashFilter(EXCEPTION_POINTERS* info)
-{
-    if (info != nullptr && info->ExceptionRecord != nullptr) {
-        writeCrashReport(info, "SetUnhandledExceptionFilter");
+    HANDLE hFile = ::CreateFileA(
+        dumpPath, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        return;
     }
-    return EXCEPTION_EXECUTE_HANDLER; // terminate process
+
+    MINIDUMP_EXCEPTION_INFORMATION mdei{};
+    mdei.ThreadId = ::GetCurrentThreadId();
+    mdei.ExceptionPointers = info;
+    mdei.ClientPointers = FALSE;
+
+    const BOOL ok = ::MiniDumpWriteDump(
+        ::GetCurrentProcess(),
+        ::GetCurrentProcessId(),
+        hFile,
+        static_cast<MINIDUMP_TYPE>(
+            MiniDumpWithDataSegs |
+            MiniDumpWithThreadInfo |
+            MiniDumpWithUnloadedModules |
+            MiniDumpWithIndirectlyReferencedMemory),
+        &mdei,
+        nullptr,
+        nullptr);
+    ::CloseHandle(hFile);
+
+    std::fprintf(stderr,
+        ok != FALSE ? "  minidump: %s\n"
+                    : "  MiniDumpWriteDump failed for %s, GetLastError=%lu\n",
+        dumpPath,
+        static_cast<unsigned long>(::GetLastError()));
+    std::fflush(stderr);
 }
 
 /**
- * @brief First-chance vectored exception handler — runs before any
- * frame-based / structured handler in *any* thread. We must filter to fatal
- * codes only, otherwise we'd fire on every benign C++ throw (which on MSVC
- * is implemented as SEH code 0xE06D7363).
+ * @brief Two-tier SEH crash machinery (matches §3.10.1 of the thesis).
  *
- * Returns EXCEPTION_CONTINUE_SEARCH so the OS still terminates the process
- * normally after we've recorded the crash; otherwise we'd be telling the
- * kernel "false alarm, resume execution at the faulting RIP" — an infinite
- * loop on a real AV.
+ * Vectored handler runs first-chance in any thread before any frame-based
+ * filter and is the primary recorder. The unhandled exception filter is a
+ * fallback for the rare case where a third-party module clears the vectored
+ * registry before the fault. Both delegate to the same writeCrashReport().
+ *
+ * Filter to fatal SEH codes in the vectored handler — otherwise we'd fire
+ * on every benign C++ throw (MSVC implements those as SEH 0xE06D7363).
+ * Returning EXCEPTION_CONTINUE_SEARCH lets the OS terminate the process
+ * normally after we've recorded the crash.
  */
 LONG CALLBACK auroraVectoredHandler(EXCEPTION_POINTERS* info)
 {
     if (info != nullptr && info->ExceptionRecord != nullptr &&
         isFatalSehCode(info->ExceptionRecord->ExceptionCode))
     {
-        writeCrashReport(info, "VectoredExceptionHandler");
+        writeCrashReport(info);
     }
     return EXCEPTION_CONTINUE_SEARCH;
+}
+
+LONG WINAPI auroraCrashFilter(EXCEPTION_POINTERS* info)
+{
+    if (info != nullptr && info->ExceptionRecord != nullptr) {
+        writeCrashReport(info);
+    }
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
+void installCrashHandlers() noexcept
+{
+    ::AddVectoredExceptionHandler(/*FirstHandler=*/1, auroraVectoredHandler);
+    ::SetUnhandledExceptionFilter(auroraCrashFilter);
 }
 
 /**
@@ -350,22 +342,26 @@ void configureSslContext(ssl::context& ctx)
 }
 
 /**
- * @brief Configures font with emoji fallback support.
+ * @brief Configures the application font with a cross-platform emoji and
+ *        symbol fallback chain.
+ *
+ * Qt's font matcher walks @c QFont::families() in order and silently skips
+ * entries that are not installed on the host system, so naming every
+ * platform's native emoji/symbol family unconditionally is both safe and
+ * idiomatic — the runtime resolves to whichever family actually exists on
+ * the current OS without any preprocessor branching.
  */
 void configureFont(QApplication& app)
 {
     QFont defaultFont = app.font();
-    QStringList families = {defaultFont.family()};
-    
-#ifdef Q_OS_MACOS
-    families << "Apple Color Emoji";
-#elif defined(Q_OS_WIN)
-    families << "Segoe UI Emoji" << "Segoe UI Symbol";
-#else
-    families << "Noto Color Emoji" << "Symbola";
-#endif
-    
-    defaultFont.setFamilies(families);
+    defaultFont.setFamilies({
+        defaultFont.family(),
+        QStringLiteral("Apple Color Emoji"),    // macOS
+        QStringLiteral("Segoe UI Emoji"),       // Windows
+        QStringLiteral("Segoe UI Symbol"),      // Windows
+        QStringLiteral("Noto Color Emoji"),     // Linux (most distros)
+        QStringLiteral("Symbola"),              // Linux fallback
+    });
     app.setFont(defaultFont);
 }
 
@@ -374,29 +370,16 @@ void configureFont(QApplication& app)
 int main(int argc, char *argv[])
 {
 #ifdef Q_OS_WIN
-    // Install before anything else: the vectored handler runs before any
-    // frame-based SEH handler in any thread, so it captures crashes even if
-    // Qt / CRT later override SetUnhandledExceptionFilter. We also install
-    // the legacy filter as a belt-and-suspenders backup.
-    ::AddVectoredExceptionHandler(/*FirstHandler=*/1, auroraVectoredHandler);
-    ::SetUnhandledExceptionFilter(auroraCrashFilter);
+    installCrashHandlers();
 #endif
 
     QApplication app(argc, argv);
 
-#ifdef Q_OS_WIN
-    // Qt's QCoreApplication on Windows historically installed its own
-    // SetUnhandledExceptionFilter and stomped over ours. Re-install to be
-    // safe — vectored handler is still the primary defence.
-    ::SetUnhandledExceptionFilter(auroraCrashFilter);
-#endif
-
 #ifdef Q_OS_MACOS
-    // Qt 6.9 + macOS 15 regression: native style routes some controls through
-    // AppKit's bundled-cursor loader (setCursorFromBundle → ImageIO), which
-    // crashes when the cached PNG asset fails to materialise. Forcing Fusion
-    // bypasses that path; the remaining widget-level cursor normalisation is
-    // performed once in MainWindow::applyMacSafeCursors().
+    // Qt 6.x + macOS 15: forcing the Fusion style avoids the AppKit native
+    // controls path that occasionally fails inside ImageIO when loading
+    // bundled cursor assets during a window resize. Cursor normalisation
+    // for individual widgets is performed in MainWindow::applyMacSafeCursors().
     if (QStyle* fusion = QStyleFactory::create(QStringLiteral("Fusion"))) {
         app.setStyle(fusion);
     }

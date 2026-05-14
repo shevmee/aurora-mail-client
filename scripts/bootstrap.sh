@@ -108,7 +108,7 @@ install_linux_deps() {
         libboost-all-dev \
         libssl-dev \
         libgmime-3.0-dev \
-        qt6keychain-dev \
+        qtkeychain-qt6-dev \
         libsecret-1-dev \
         nlohmann-json3-dev \
         clang-format \
