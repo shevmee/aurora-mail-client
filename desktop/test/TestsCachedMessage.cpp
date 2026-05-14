@@ -181,7 +181,7 @@ TEST(CachedMessageBlob, DecodeRejectsAttachmentCountAboveLimit)
   // QVector. This guards against malicious / corrupted on-disk blobs.
   QByteArray buffer;
   QDataStream out(&buffer, QIODevice::WriteOnly);
-  out.setVersion(QDataStream::Qt_6_0);
+  out.setVersion(QDataStream::Qt_5_15);
   out << static_cast<quint32>(0x414D4331u);  // magic 'AMC1'
   out << static_cast<quint16>(1);            // version
   out << QString("u@x.com");

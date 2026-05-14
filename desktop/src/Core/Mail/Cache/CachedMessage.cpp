@@ -13,6 +13,12 @@ namespace aurora::mail::app::cache
     // 'A','M','C','1' — Aurora Mail Cache, format family v1.
     constexpr quint32 kBlobMagic = 0x414D4331u;
     constexpr quint16 kBlobVersion = 1;
+
+    // Pin the QDataStream wire format to a single version so cache blobs
+    // are byte-identical regardless of whether the build links against Qt 5
+    // or Qt 6. Qt_5_15 is the highest version available in Qt 5 and remains
+    // a supported reader/writer version in Qt 6.
+    constexpr auto kStreamVersion = QDataStream::Qt_5_15;
   }  // namespace
 
   std::size_t CachedMessage::approximateBytesOf(const aurora::mail::app::email::ParsedEmailContent& content) noexcept
@@ -38,7 +44,7 @@ namespace aurora::mail::app::cache
   {
     QByteArray buffer;
     QDataStream out(&buffer, QIODevice::WriteOnly);
-    out.setVersion(QDataStream::Qt_6_0);
+    out.setVersion(kStreamVersion);
 
     // Header: magic + version. Allows the persistent layer to fail closed on garbage.
     out << kBlobMagic;
@@ -78,7 +84,7 @@ namespace aurora::mail::app::cache
   std::optional<CachedMessage> decodeCachedMessage(const QByteArray& blob)
   {
     QDataStream in(blob);
-    in.setVersion(QDataStream::Qt_6_0);
+    in.setVersion(kStreamVersion);
 
     quint32 magic = 0;
     quint16 version = 0;
