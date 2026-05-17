@@ -38,9 +38,9 @@ target_compile_features(DesktopCoreTests PRIVATE cxx_std_23)
 target_link_libraries(DesktopCoreTests PRIVATE
     AuroraMailCore
     AuroraMailEngine
-    Qt${QT_VERSION_MAJOR}::Core
-    Qt${QT_VERSION_MAJOR}::Network
-    Qt${QT_VERSION_MAJOR}::Sql
+    Qt6::Core
+    Qt6::Network
+    Qt6::Sql
     GTest::gtest
     # Note: we register our own main (DesktopTestMain.cpp) to construct a
     # QCoreApplication before any test runs, so we deliberately do NOT link

@@ -2376,7 +2376,24 @@ void MainWindow::handleIdleServerNotification(const QString& notification)
 {
   // EXISTS / EXPUNGE / FETCH refer to the *currently SELECTed* mailbox only.
   // SMTP send stores the copy in Sent — IDLE on INBOX will usually not emit EXISTS for that.
-  if (notification.contains(QStringLiteral("EXISTS"), Qt::CaseInsensitive))
+  //
+  // We translate every notification into a SelectMailbox(m_currentMailbox) operation
+  // rather than a bare FetchMailboxPage. SelectMailbox carries the mailbox name as a
+  // parameter, so:
+  //   * If the user clicks another mailbox between this enqueue and the pump tick,
+  //     ImapCommandQueue cleanly replaces our op with the user's op (last writer wins
+  //     for SelectMailbox), and the user sees the mailbox they actually picked.
+  //   * If the user stays on m_currentMailbox, the pump re-runs SELECT + the canonical
+  //     50-message FETCH, which is the only path that reliably surfaces the new sequence
+  //     number on the screen.
+  // Using FetchMailboxPage here is unsafe — it has no mailbox context, so a concurrent
+  // user click on another mailbox makes the queue either drop it (via SelectMailbox's
+  // queue_.clear()) or execute it against the wrong mailbox after the SELECT switches.
+  const bool isExists  = notification.contains(QStringLiteral("EXISTS"),  Qt::CaseInsensitive);
+  const bool isExpunge = notification.contains(QStringLiteral("EXPUNGE"), Qt::CaseInsensitive);
+  const bool isFetch   = notification.contains(QStringLiteral("FETCH"),   Qt::CaseInsensitive);
+
+  if (isExists)
   {
     QRegularExpression existsRegex(R"(\*\s+(\d+)\s+EXISTS)", QRegularExpression::CaseInsensitiveOption);
     auto match = existsRegex.match(notification);
@@ -2388,13 +2405,14 @@ void MainWindow::handleIdleServerNotification(const QString& notification)
       if (newCount > currentCount)
       {
         qDebug() << "IDLE: Mailbox count updated from" << currentCount << "to" << newCount;
+        // Update the badge eagerly so the UI feels responsive while we wait for the
+        // re-select + fetch round-trip; applyFetchResults will overwrite it anyway.
         m_emailListManager->setMailboxMessageCount(newCount);
       }
     }
     showStatus("New email received!", 3000);
-    loadEmails();
   }
-  else if (notification.contains(QStringLiteral("EXPUNGE"), Qt::CaseInsensitive))
+  else if (isExpunge)
   {
     if (m_emailListManager != nullptr)
     {
@@ -2405,13 +2423,25 @@ void MainWindow::handleIdleServerNotification(const QString& notification)
       }
     }
     showStatus("Email deleted on server", 3000);
-    loadEmails();
   }
-  else if (notification.contains(QStringLiteral("FETCH"), Qt::CaseInsensitive))
+  else if (isFetch)
   {
     showStatus("Email flags updated", 3000);
-    loadEmails();
   }
+  else
+  {
+    return;
+  }
+
+  // Re-sync the currently displayed mailbox by going through the SelectMailbox path.
+  // Skip if we don't have a current mailbox yet (extremely early init), otherwise we'd
+  // queue SelectMailbox("") which dispatchImapOperation would treat as a server-side
+  // error.
+  if (m_currentMailbox.isEmpty())
+  {
+    return;
+  }
+  enqueueImapOperation({ ImapOpType::SelectMailbox, m_currentMailbox, QString(), true });
 }
 
 boost::asio::awaitable<void> MainWindow::dispatchImapOperation(const ImapOperation& op)

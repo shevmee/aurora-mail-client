@@ -21,7 +21,7 @@ target_include_directories(AuroraMailIoContext
 target_link_libraries(AuroraMailIoContext
     PUBLIC
         Boost::headers
-        Qt${QT_VERSION_MAJOR}::Core
+        Qt6::Core
 )
 
 target_compile_features(AuroraMailIoContext PUBLIC cxx_std_23)

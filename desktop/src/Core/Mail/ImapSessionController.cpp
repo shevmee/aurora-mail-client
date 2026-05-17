@@ -99,8 +99,29 @@ void ImapSessionController::startPolling()
             continue;
           }
 
+          // Tight window: if a notification handler called enqueueOperation between the
+          // two earlier m_commandPending checks and the asyncIdleStart completion, the
+          // pump's cancelIdleWait was a no-op (idle_cancel_outstanding_ was nullptr — the
+          // previous wait reset it, this wait has not yet installed its own signal).
+          // Without this check we would proceed to asyncIdleWait, install a fresh signal,
+          // and wait for up to kIdleWaitSec (5 min) with no way for the pump to break us
+          // out, while the pump itself bails on waitIdleReleasedAsync after ~5s and drops
+          // the queued op. Send DONE now and let the pump drain.
+          if (m_commandPending.load())
+          {
+            auto doneResult = co_await imapClient->asyncIdleDone();
+            m_idleExited = true;
+            setPhase(ImapConnectionPhase::Ready);
+            if (!doneResult.has_value())
+            {
+              qWarning() << "Failed to exit IDLE (post-start race):"
+                         << QString::fromStdString(doneResult.error().toString());
+              break;
+            }
+            continue;
+          }
+
           setPhase(ImapConnectionPhase::ServerIdling);
-          // Entered state is logged by ImapClient after "+ idling" (avoids qDebug/spdlog ordering confusion).
 
           auto waitResult = co_await imapClient->asyncIdleWait(kIdleWaitSec);
 
@@ -173,6 +194,39 @@ void ImapSessionController::resumeIdle()
 
 void ImapSessionController::enqueueOperation(ImapOperation op)
 {
+  // Close the IDLE re-arm window synchronously, BEFORE the pump coroutine runs.
+  //
+  // Race we are fixing: when an IDLE push (e.g., "* N EXISTS") fires, the IDLE coroutine
+  // wakes asyncIdleWait, runs asyncIdleDone, sets m_idleExited=true, logs "IDLE: Exited",
+  // and immediately loops back to iter N+1 on the SAME strand. Meanwhile, the unsolicited
+  // callback is marshalled to the Qt thread, which eventually calls enqueueOperation here.
+  //
+  // If we set m_commandPending only inside the pump's waitIdleReleasedAsync (called later,
+  // once scheduleImapPump's posted task drains), iter N+1 has already passed its top-of-loop
+  // check, flipped m_idleExited back to false, and called asyncIdleStart. cancelIdleWait
+  // then emits on idle_cancel_outstanding_ — which is either nullptr (post asyncIdleWait
+  // reset) or the fresh signal that iter N+1 has not yet installed. The cancel is lost,
+  // waitIdleReleasedAsync polls for ~kIdlePauseTimeoutMs and bails with "timed out", and
+  // the just-enqueued op is left in the queue with no consumer.
+  //
+  // Setting m_commandPending=true here (before queue_.enqueue, before scheduleImapPump's
+  // post unwinds) makes the IDLE coroutine's "if (m_commandPending) { sleep 50ms; continue; }"
+  // guard fire, which prevents iter N+1 from re-arming. The pump then sees m_idleExited
+  // already true and proceeds without waiting.
+  //
+  // We also kick cancelIdleWait here so that if the IDLE coroutine is genuinely inside
+  // asyncIdleWait (long-poll), it gets cancelled now rather than only when the pump
+  // gets around to it. This matters when the operation is enqueued for a reason OTHER
+  // than an IDLE push (e.g., user-initiated SelectMailbox click while IDLE is mid-wait).
+  m_commandPending = true;
+  if (m_idleRunning.load() && !m_idleExited.load())
+  {
+    if (auto imapClient = imapClient_.lock())
+    {
+      imapClient->cancelIdleWait();
+    }
+  }
+
   queue_.enqueue(std::move(op));
   scheduleImapPump();
 }
@@ -218,7 +272,16 @@ boost::asio::awaitable<bool> ImapSessionController::waitIdleReleasedAsync()
     co_return true;
   }
 
-  m_commandPending = true;
+  // m_commandPending and cancelIdleWait are already set in enqueueOperation. Here we
+  // only need to wait for the IDLE coroutine to acknowledge by setting m_idleExited=true
+  // (either because asyncIdleWait returned with a push, or because cancelIdleWait broke
+  // it out of long-poll). After enqueueOperation's synchronous pre-flag, the IDLE
+  // coroutine's top-of-loop "if (m_commandPending) continue;" prevents it from re-arming
+  // a fresh asyncIdleStart while we are waiting.
+  //
+  // Defensive: re-emit cancel here in case enqueueOperation didn't (e.g., m_idleRunning
+  // was momentarily false between iterations, but iter N has since re-armed). One extra
+  // cancel emit on a stale signal is a no-op; missing one would re-introduce the timeout.
   if (auto imapClient = imapClient_.lock())
   {
     imapClient->cancelIdleWait();

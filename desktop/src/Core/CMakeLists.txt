@@ -81,7 +81,7 @@ add_library(AuroraMailCore STATIC ${CORE_SOURCES})
 
 # Qt SQL drives the per-account encrypted SQLite tier of the message cache
 # (Mail/Cache/PersistentMessageCache). It ships with the standard Qt install.
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Sql)
+find_package(Qt6 REQUIRED COMPONENTS Sql)
 
 target_include_directories(AuroraMailCore
     PUBLIC
@@ -99,9 +99,9 @@ target_link_libraries(AuroraMailCore
         AuroraMail::IoContext
         AuroraMail::AI
         AuroraMailEngine
-        Qt${QT_VERSION_MAJOR}::Core
-        Qt${QT_VERSION_MAJOR}::Gui
-        Qt${QT_VERSION_MAJOR}::Network
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Network
         Boost::headers
 )
 
@@ -112,7 +112,7 @@ target_link_libraries(AuroraMailCore
 # through Qt's QJsonDocument family — nlohmann_json is no longer linked here.
 target_link_libraries(AuroraMailCore PRIVATE
     OpenSSL::Crypto
-    Qt${QT_VERSION_MAJOR}::Sql
+    Qt6::Sql
 )
 
 # On Windows, PersistentMessageCache narrows its DACL to the current user via

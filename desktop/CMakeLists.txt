@@ -5,15 +5,19 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-# Qt
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Gui Widgets Concurrent Network Sql)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets Concurrent Network Sql)
+# Qt 6 is mandatory: the project requires C++23, Boost 1.83 + asio coroutines,
+# Qt's modular Cmake API (qt_add_executable, qt_add_lrelease, qt_add_resources)
+# and QtKeychain's Qt6Keychain target. Qt5 was never an exercised target and
+# the legacy `find_package(QT NAMES Qt6 Qt5)` indirection silently miscompiled
+# on Ubuntu Noble (QT_VERSION_MAJOR ended up empty, so Qt${QT_VERSION_MAJOR}
+# became the non-existent package name "Qt" — see commit history for details).
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Concurrent Network Sql)
 
 # LinguistTools is optional: it is only needed at *build* time to update or
 # release translation files. Without it the app still runs (it just falls back
 # to the embedded English source strings via Qt's default tr() lookup), and
 # the existing aurora-mail_uk.qm — if shipped — keeps working unchanged.
-find_package(Qt${QT_VERSION_MAJOR} QUIET COMPONENTS LinguistTools)
+find_package(Qt6 QUIET COMPONENTS LinguistTools)
 
 # Secure token / credential storage option (applied in src/Core/Auth/CMakeLists.txt).
 # Default ON for platforms where QtKeychain is reliably available (macOS Keychain,
@@ -58,7 +62,7 @@ set(AURORA_TS_FILES
 )
 
 set(AURORA_QM_FILES "")
-if(Qt${QT_VERSION_MAJOR}LinguistTools_FOUND AND ${QT_VERSION_MAJOR} GREATER_EQUAL 6)
+if(Qt6LinguistTools_FOUND)
     # Compile committed .ts → .qm. The .qm files are then plumbed into the
     # binary explicitly via qt_add_resources() (NOT AUTORCC, which would run
     # before the lrelease custom command produces the .qm output).
@@ -72,7 +76,7 @@ if(Qt${QT_VERSION_MAJOR}LinguistTools_FOUND AND ${QT_VERSION_MAJOR} GREATER_EQUA
         TS_FILES ${AURORA_TS_FILES}
         QM_FILES_OUTPUT_VARIABLE AURORA_QM_FILES
     )
-elseif(NOT Qt${QT_VERSION_MAJOR}LinguistTools_FOUND)
+elseif(NOT Qt6LinguistTools_FOUND)
     message(STATUS
         "Qt LinguistTools not found — translations will not be (re)compiled."
         " The desktop app falls back to the embedded English source strings."
@@ -84,18 +88,11 @@ set(RESOURCES
     src/Core/Auth/Resources/oauth_resources.qrc
 )
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(aurora-mail
-        MANUAL_FINALIZATION
-        main.cpp
-        ${RESOURCES}
-    )
-else()
-    add_executable(aurora-mail
-        main.cpp
-        ${RESOURCES}
-    )
-endif()
+qt_add_executable(aurora-mail
+    MANUAL_FINALIZATION
+    main.cpp
+    ${RESOURCES}
+)
 
 # Embed compiled .qm files into the binary under ":/translations/<basename>.qm",
 # matching the prefix used by main.cpp's QTranslator::load(":/translations").
@@ -128,10 +125,10 @@ target_link_libraries(aurora-mail PRIVATE
     OpenSSL::SSL
     OpenSSL::Crypto
     Boost::headers
-    Qt${QT_VERSION_MAJOR}::Widgets
-    Qt${QT_VERSION_MAJOR}::Concurrent
-    Qt${QT_VERSION_MAJOR}::Network
-    Qt${QT_VERSION_MAJOR}::Sql
+    Qt6::Widgets
+    Qt6::Concurrent
+    Qt6::Network
+    Qt6::Sql
 )
 
 # Windows-only system libs:
@@ -167,9 +164,7 @@ install(TARGETS aurora-mail
 )
 
 # Finalize Qt executable
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(aurora-mail)
-endif()
+qt_finalize_executable(aurora-mail)
 
 # ----------------------------------------------------------------------------
 # Windows: deploy Qt 6 plugins next to the binary. Without platforms/
@@ -187,7 +182,7 @@ endif()
 # which is the default for the Visual Studio generator. The only thing
 # missing is the Qt plugin tree, which we mirror manually below.
 # ----------------------------------------------------------------------------
-if(WIN32 AND ${QT_VERSION_MAJOR} GREATER_EQUAL 6)
+if(WIN32)
     # Qt6_DIR points at <triplet>/share/Qt6, so plugins live two levels up
     # under Qt6/plugins (vcpkg layout). Resolve once, absolute, so the path
     # is robust against in/out-of-source builds.

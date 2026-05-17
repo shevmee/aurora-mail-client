@@ -33,7 +33,7 @@ target_include_directories(AuroraMailUi PUBLIC
 
 target_link_libraries(AuroraMailUi PUBLIC
     AuroraMailCore
-    Qt${QT_VERSION_MAJOR}::Widgets
-    Qt${QT_VERSION_MAJOR}::Concurrent
-    Qt${QT_VERSION_MAJOR}::Network
+    Qt6::Widgets
+    Qt6::Concurrent
+    Qt6::Network
 )

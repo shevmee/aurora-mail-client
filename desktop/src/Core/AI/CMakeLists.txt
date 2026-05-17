@@ -25,8 +25,8 @@ target_include_directories(AuroraMailAI
 target_link_libraries(AuroraMailAI
     PUBLIC
         AuroraMail::Auth
-        Qt${QT_VERSION_MAJOR}::Core
-        Qt${QT_VERSION_MAJOR}::Network
+        Qt6::Core
+        Qt6::Network
 )
 
 target_compile_features(AuroraMailAI PUBLIC cxx_std_23)

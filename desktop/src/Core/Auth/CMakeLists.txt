@@ -35,16 +35,9 @@ set(AUTH_STORAGE_SOURCES
 # downgrade to QSettings rather than hard-failing the build.
 set(_AURORA_KEYCHAIN_AVAILABLE OFF)
 if(USE_SYSTEM_KEYCHAIN)
-    if(QT_VERSION_MAJOR EQUAL 6)
-        find_package(Qt6Keychain QUIET)
-        if(Qt6Keychain_FOUND)
-            set(_AURORA_KEYCHAIN_AVAILABLE ON)
-        endif()
-    else()
-        find_package(Qt5Keychain QUIET)
-        if(Qt5Keychain_FOUND)
-            set(_AURORA_KEYCHAIN_AVAILABLE ON)
-        endif()
+    find_package(Qt6Keychain QUIET CONFIG)
+    if(Qt6Keychain_FOUND)
+        set(_AURORA_KEYCHAIN_AVAILABLE ON)
     endif()
 endif()
 
@@ -81,17 +74,13 @@ target_include_directories(AuroraMailAuth
 )
 
 target_link_libraries(AuroraMailAuth PUBLIC
-    Qt${QT_VERSION_MAJOR}::Core
-    Qt${QT_VERSION_MAJOR}::Network
-    Qt${QT_VERSION_MAJOR}::Gui
+    Qt6::Core
+    Qt6::Network
+    Qt6::Gui
 )
 
 if(_AURORA_KEYCHAIN_AVAILABLE)
-    if(QT_VERSION_MAJOR EQUAL 6)
-        target_link_libraries(AuroraMailAuth PUBLIC Qt6Keychain::Qt6Keychain)
-    else()
-        target_link_libraries(AuroraMailAuth PUBLIC Qt5Keychain::Qt5Keychain)
-    endif()
+    target_link_libraries(AuroraMailAuth PUBLIC Qt6Keychain::Qt6Keychain)
     target_compile_definitions(AuroraMailAuth PUBLIC AURORA_USE_KEYCHAIN=1)
     message(STATUS "Auth: Using QtKeychain for secure credential storage")
 else()
@@ -100,7 +89,8 @@ else()
         message(WARNING
             "Auth: USE_SYSTEM_KEYCHAIN=ON but QtKeychain was not found. "
             "Falling back to QSettings (development mode - NOT SECURE). "
-            "Install QtKeychain (e.g. brew install qtkeychain) to enable secure storage.")
+            "Install QtKeychain (apt: qtkeychain-qt6-dev, brew: qtkeychain, "
+            "vcpkg: qtkeychain-qt6) to enable secure storage.")
     else()
         message(STATUS "Auth: Using QSettings for credential storage (development mode - NOT SECURE)")
     endif()

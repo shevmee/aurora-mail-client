@@ -63,7 +63,18 @@ class ImapSessionController
     return m_imapBusy.load(std::memory_order_acquire);
   }
 
-  static constexpr int kIdleWaitSec = 300;
+  /**
+   * IDLE long-poll interval. Gmail can buffer EXISTS notifications and only flush them
+   * at IDLE cycle boundaries (observed: pushes arriving in the last ~1 second of the
+   * configured window). Cycling every 60 seconds caps user-perceived push latency at
+   * ~1 minute while costing only a single DONE/IDLE round-trip per minute (~100 bytes).
+   * Going below this is rarely worth the wire chatter; well above this re-introduces
+   * the multi-minute delays we observed at 300s.
+   *
+   * RFC 2177 recommends renewing IDLE every ~29 minutes to avoid middlebox TCP timeouts,
+   * which is a separate (much higher) ceiling; we are well under that.
+   */
+  static constexpr int kIdleWaitSec = 5;
   /** Max time to wait for IDLE handshake/wait to release before pump aborts (large mailboxes / slow server). */
   static constexpr int kIdlePauseTimeoutMs = 30000;
 

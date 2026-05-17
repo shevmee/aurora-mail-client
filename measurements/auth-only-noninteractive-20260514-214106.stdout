@@ -1,0 +1,25 @@
+2026-05-14 21:41:23.429 [INFO] IMAP: Connecting to imap.gmail.com:993 (secure: true)
+2026-05-14 21:41:23.702 [INFO] IMAP: TCP connected to 2a00:1450:400c:c07::6c:993
+2026-05-14 21:41:23.702 [INFO] IMAP: Upgrading connection to TLS
+2026-05-14 21:41:23.864 [INFO] IMAP: TLS upgrade completed
+2026-05-14 21:41:23.864 [INFO] IMAP: Connection established
+2026-05-14 21:41:24.020 [INFO] IMAP: Server greeting: * OK Gimap ready for requests from 2603:5004:20b0:100b:b1ff:9f66:edd9:a305 5c2dc8763939e-49d37a04d73mb106937346122
+2026-05-14 21:41:24.020 [INFO] IMAP: Successfully connected
+2026-05-14 21:41:24.455 [INFO] SMTP: Connecting to smtp.gmail.com:587 (secure: false)
+2026-05-14 21:41:24.822 [INFO] SMTP: TCP connected to 2a00:1450:4001:c21::6c:587
+2026-05-14 21:41:24.822 [INFO] SMTP: Connection established
+2026-05-14 21:41:25.349 [INFO] SMTP: Upgrading connection to TLS
+2026-05-14 21:41:25.606 [INFO] SMTP: TLS upgrade completed
+2026-05-14 21:41:25.931 [INFO] SMTP: Successfully connected with capabilities: SMTP Capabilities:
+  SMTPUTF8
+  CHUNKING
+  ENHANCEDSTATUSCODES
+  PIPELINING
+  AUTH LOGIN PLAIN XOAUTH2 PLAIN-CLIENTTOKEN OAUTHBEARER XOAUTH
+  8BITMIME
+  SIZE 35882577
+  Auth mechanisms: LOGIN, PLAIN, XOAUTH2, PLAIN-CLIENTTOKEN, OAUTHBEARER, XOAUTH
+
+2026-05-14 21:41:26.238 [INFO] IMAP: LIST "" "*"
+2026-05-14 21:41:26.584 [INFO] IMAP: LIST completed - found 0 mailboxes
+2026-05-14 21:41:26.585 [INFO] IMAP: SELECT INBOX (CONDSTORE)
