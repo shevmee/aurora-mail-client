@@ -1,7 +1,0 @@
-KeychainBackend: Using system keychain for secure token storage
-KeychainBackend: Using system keychain for secure token storage
-KeychainBackend: Using system keychain for secure token storage
-[AI] API key loaded from secure storage
-KeychainBackend: Using system keychain for secure token storage
-qt.qpa.fonts: Populating font family aliases took 88 ms. Replace uses of missing font family "-apple-system" with one that exists to avoid this cost. 
-"OAuth credentials not configured.\n\nMissing: AURORA_OAUTH_CLIENT_ID, AURORA_OAUTH_CLIENT_SECRET\n\nSet environment variables or rebuild with:\n  cmake -DOAUTH_CLIENT_ID=xxx -DOAUTH_CLIENT_SECRET=xxx ..\n\nGet credentials at: https://console.cloud.google.com/"
