@@ -61,28 +61,6 @@ set(AURORA_TS_FILES
     translations/aurora-mail_uk.ts
 )
 
-set(AURORA_QM_FILES "")
-if(Qt6LinguistTools_FOUND)
-    # Compile committed .ts → .qm. The .qm files are then plumbed into the
-    # binary explicitly via qt_add_resources() (NOT AUTORCC, which would run
-    # before the lrelease custom command produces the .qm output).
-    #
-    # Qt aggregates per-project lrelease invocations under the global
-    # `release_translations` target, which is what we depend on below.
-    # Refreshing the .ts entries from source is a developer-side workflow:
-    #   lupdate -source-language en -target-language uk \
-    #           desktop/src -ts desktop/translations/aurora-mail_uk.ts
-    qt_add_lrelease(
-        TS_FILES ${AURORA_TS_FILES}
-        QM_FILES_OUTPUT_VARIABLE AURORA_QM_FILES
-    )
-elseif(NOT Qt6LinguistTools_FOUND)
-    message(STATUS
-        "Qt LinguistTools not found — translations will not be (re)compiled."
-        " The desktop app falls back to the embedded English source strings."
-        " Install qt6-tools-dev (Linux) / qt6-base via Homebrew to enable.")
-endif()
-
 set(RESOURCES
     Resources/resources.qrc
     src/Core/Auth/Resources/oauth_resources.qrc
@@ -94,21 +72,32 @@ qt_add_executable(aurora-mail
     ${RESOURCES}
 )
 
-# Embed compiled .qm files into the binary under ":/translations/<basename>.qm",
-# matching the prefix used by main.cpp's QTranslator::load(":/translations").
-# qt_add_resources() (rather than AUTORCC) is required here because the .qm
-# files are produced by Qt's `release_translations` aggregator target during
-# the build — AUTORCC scans .qrc inputs at *configure* time, before lrelease
-# has had a chance to run.
-if(AURORA_QM_FILES)
-    qt_add_resources(aurora-mail "translations"
-        PREFIX "/translations"
-        BASE "${CMAKE_CURRENT_BINARY_DIR}"
-        FILES ${AURORA_QM_FILES}
+# Compile committed .ts → .qm and embed them into aurora-mail under
+# :/translations/<basename>.qm (matching main.cpp's
+# QTranslator::load(uiLocale, "aurora-mail", "_", ":/translations")).
+#
+# qt_add_translations() is the Qt 6.2+ high-level API that bundles three
+# things we used to do by hand: (1) lrelease for each .ts, (2) generation
+# of an internal .qrc, (3) target dependency wiring against the global
+# `release_translations` aggregator. It supersedes the lower-level
+# qt_add_lrelease + qt_add_resources pair we used previously, which broke
+# on Qt 6.4 after the qt_add_lrelease signature changed to take a target
+# as its first positional argument.
+#
+# Refreshing the .ts entries from source is still a developer-side workflow:
+#   lupdate -source-language en -target-language uk \
+#           desktop/src -ts desktop/translations/aurora-mail_uk.ts
+if(Qt6LinguistTools_FOUND)
+    qt_add_translations(aurora-mail
+        TS_FILES ${AURORA_TS_FILES}
+        RESOURCE_PREFIX "/translations"
     )
-    if(TARGET release_translations)
-        add_dependencies(aurora-mail release_translations)
-    endif()
+else()
+    message(STATUS
+        "Qt LinguistTools not found — translations will not be (re)compiled."
+        " The desktop app falls back to the embedded English source strings."
+        " Install qt6-tools-dev + qt6-l10n-tools (Linux) /"
+        " qt6-base via Homebrew to enable.")
 endif()
 
 # Include directories
