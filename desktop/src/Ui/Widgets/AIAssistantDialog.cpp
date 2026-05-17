@@ -62,6 +62,18 @@ namespace aurora::mail::ui
     m_statusLabel->setWordWrap(true);
     m_statusLabel->setMaximumWidth(600);
     m_statusLabel->setStyleSheet("font-size: 14px; color: #666;");
+    // Wrapped QLabels inside a layout with vertical stretches around them
+    // need heightForWidth() consultation at allocation time — otherwise the
+    // layout uses sizeHint().height(), which corresponds to the natural
+    // (unwrapped) one-line height, and clips the second line. Visible on
+    // Linux Qt 6.4 with the Ukrainian translation of showIdle's placeholder
+    // ("Оберіть варіант вище та натисніть «Запитати ШІ»…"), which wraps to
+    // two lines at maxWidth=600 but only one line of height was allocated.
+    {
+      QSizePolicy statusPolicy = m_statusLabel->sizePolicy();
+      statusPolicy.setHeightForWidth(true);
+      m_statusLabel->setSizePolicy(statusPolicy);
+    }
 
     // Vertical stretches above and below center the content within the
     // expanded loading widget. AlignHCenter on each addWidget centers the
