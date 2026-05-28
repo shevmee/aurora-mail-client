@@ -358,11 +358,62 @@ bool OAuthManager::isAuthenticated() const
 
 void OAuthManager::signOut()
 {
+  // Capture the refresh token BEFORE local cleanup so we can ask the provider
+  // to invalidate it server-side. Per RFC 7009 §2.2 this is best-effort: a
+  // failed/slow network response must not delay or block local sign-out.
+  const QString refreshToken = tokens_.refreshToken;
+
   tokens_ = TokenData{};
   user_email_.clear();
   token_storage_.clear();
 
+  revokeRefreshTokenBestEffort(refreshToken);
+
   emit signedOut();
+}
+
+void OAuthManager::revokeRefreshTokenBestEffort(const QString& refreshToken)
+{
+  if (refreshToken.isEmpty() || config_.revocationEndpoint.isEmpty())
+  {
+    return;
+  }
+
+  QNetworkRequest request(QUrl(config_.revocationEndpoint));
+  request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+
+  QUrlQuery postData;
+  postData.addQueryItem("token", refreshToken);
+  postData.addQueryItem("token_type_hint", "refresh_token");
+
+  qDebug() << "Revoking refresh_token at" << config_.revocationEndpoint << "(best effort)";
+
+  QNetworkReply* reply = network_manager_.post(request, postData.toString(QUrl::FullyEncoded).toUtf8());
+
+  // Fire-and-forget: log the outcome but do not block the caller. The reply
+  // outlives this function and is owned by network_manager_; deleteLater()
+  // releases it once the response completes (or the QNAM is destroyed).
+  connect(
+      reply,
+      &QNetworkReply::finished,
+      this,
+      [reply]()
+      {
+        const int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const auto err = reply->error();
+        if (err == QNetworkReply::NoError && httpStatus >= 200 && httpStatus < 300)
+        {
+          qDebug() << "refresh_token revocation acknowledged (HTTP" << httpStatus << ")";
+        }
+        else
+        {
+          // RFC 7009 §2.2: clients SHOULD continue with local sign-out even
+          // when the server responds with an error. We log and move on.
+          qWarning() << "refresh_token revocation failed (HTTP" << httpStatus << ", err"
+                     << err << "); local sign-out has already completed";
+        }
+        reply->deleteLater();
+      });
 }
 
 bool OAuthManager::loadStoredTokens()

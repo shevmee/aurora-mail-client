@@ -12,7 +12,12 @@
  * This enables compile-time polymorphism without virtual function overhead.
  */
 template<typename T>
-concept SecureStorageConcept = requires(T storage, const T constStorage, const QString& key, const QString& value) {
+concept SecureStorageConcept = requires(
+  T storage,
+  const T constStorage,
+  const QString& key,
+  const QString& value
+) {
   // Store a secret value
   { storage.store(key, value) } -> std::same_as<void>;
 

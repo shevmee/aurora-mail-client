@@ -42,3 +42,13 @@ desktop/docs/
 # Personal notes / scratch (never commit)
 text.md
 text.md.recovered.bak
+screenshots/
+
+# Defense presentation venv (created by scripts/build_defense_pptx.py)
+.venv-pptx/
+
+# Defense presentation template (institutional, do not commit)
+template.pptx
+
+# Diagram rendering toolchain (PlantUML jar, mermaid-cli node_modules)
+.tools/

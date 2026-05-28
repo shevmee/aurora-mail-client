@@ -206,6 +206,15 @@ class OAuthManager : public QObject
   void refreshAccessTokenAsync(std::function<void(bool success)> onComplete);
 
   /**
+   * @brief Best-effort revocation of the supplied refresh_token at the
+   *        provider's RFC 7009 endpoint. Fire-and-forget: the network reply
+   *        is logged but never blocks the caller, per RFC 7009 §2.2 which
+   *        recommends that clients treat revocation as advisory. No-op if
+   *        @p refreshToken is empty or @c config_.revocationEndpoint is empty.
+   */
+  void revokeRefreshTokenBestEffort(const QString& refreshToken);
+
+  /**
    * @brief Sets up connections for the OAuth redirect server.
    */
   void setupConnections();

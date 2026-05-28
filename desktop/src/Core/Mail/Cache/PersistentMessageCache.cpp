@@ -35,6 +35,12 @@ namespace aurora::mail::app::cache
     constexpr const char* kDriver = "QSQLITE";
     constexpr const char* kCacheSubdir = "messagecache";
 
+    // Versioning for the on-disk schema. Incremented whenever the layout of
+    // the `messages` table or any companion table changes in a backward-
+    // incompatible way; future migrations branch on a lower stored version
+    // and step it up to kCurrentSchemaVersion.
+    constexpr int kCurrentSchemaVersion = 1;
+
 #if defined(Q_OS_WIN)
     // Apply a protected DACL granting only the current user full access to `path`.
     // Mirrors the POSIX 0600 semantics that we set on UNIX: nobody but the file
@@ -177,6 +183,14 @@ namespace aurora::mail::app::cache
     {
       // Non-fatal: just means temp files may hit disk.
     }
+    // Overwrite deleted pages with zeros so raw-file recovery of evicted rows
+    // becomes harder. Best-effort only: on SSDs this still depends on wear
+    // levelling and TRIM. Sensitive content is already AES-GCM-sealed; this
+    // hardens the plaintext metadata (mailbox, uid) at rest.
+    if (!q.exec(QStringLiteral("PRAGMA secure_delete=ON")))
+    {
+      // Non-fatal.
+    }
 
     const QString schema = QStringLiteral(
         "CREATE TABLE IF NOT EXISTS messages ("
@@ -200,6 +214,32 @@ namespace aurora::mail::app::cache
       qWarning() << "PersistentMessageCache: CREATE INDEX failed:" << q.lastError().text();
     }
 
+    // Schema versioning. PRAGMA user_version returns 0 for a freshly created
+    // database; we stamp it with the current version so future builds can detect
+    // out-of-date or out-of-bounds schemas and branch into migrations here.
+    QSqlQuery versionQuery(db);
+    if (versionQuery.exec(QStringLiteral("PRAGMA user_version")) && versionQuery.next())
+    {
+      const int existingVersion = versionQuery.value(0).toInt();
+      if (existingVersion == 0)
+      {
+        if (!q.exec(QStringLiteral("PRAGMA user_version = %1").arg(kCurrentSchemaVersion)))
+        {
+          qWarning() << "PersistentMessageCache: setting user_version failed:" << q.lastError().text();
+        }
+      }
+      else if (existingVersion > kCurrentSchemaVersion)
+      {
+        // The file was last written by a newer build of the application.
+        // Fail closed rather than risk corrupting unknown columns or triggers.
+        qWarning() << "PersistentMessageCache: on-disk schema version" << existingVersion
+                   << "is newer than supported" << kCurrentSchemaVersion << "; cache disabled";
+        return;
+      }
+      // existingVersion < kCurrentSchemaVersion: future migration steps go here,
+      // bumping user_version one step at a time until it matches.
+    }
+
     enabled_ = true;
   }
 
@@ -219,6 +259,14 @@ namespace aurora::mail::app::cache
       {
         // RAII scope so the database object is destroyed before removeDatabase().
         QSqlDatabase db = QSqlDatabase::database(name, /*open=*/false);
+        if (db.isOpen())
+        {
+          // SQLite recommendation: run PRAGMA optimize before closing the
+          // connection so query-planner statistics are refreshed for the next
+          // process that opens this file. Cheap and safe; failures are ignored.
+          QSqlQuery optQ(db);
+          optQ.exec(QStringLiteral("PRAGMA optimize"));
+        }
         db.close();
       }
       QSqlDatabase::removeDatabase(name);
